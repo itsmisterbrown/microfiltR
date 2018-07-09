@@ -20,7 +20,13 @@ filter.threshold <- function(ps, Tmin=1e-4, Tmax=2e-4, Tstep=1e-5, controlID) {
         ps.if <- phyloseq::transform_sample_counts(ps, fun = filterfx)
         
         #FILTERING
-        otu.tab <- as.matrix(t(phyloseq::otu_table(ps.if)))
+        if(as.logical(class(phyloseq::otu_table(ps.if))[1] == "otu_table") && 
+           as.logical(taxa_are_rows(phyloseq::otu_table(ps.if)) == TRUE)){
+          otu.tab <- as.matrix(phyloseq::otu_table(ps.if))
+        } else {
+          otu.tab <- as.matrix(t(phyloseq::otu_table(ps.if)))
+        }
+        
         tvec[i] <- nrow(otu.tab[which(otu.tab[,match(controlID, colnames(otu.tab))] != 0),])
 
       },
@@ -100,6 +106,7 @@ filter.object <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NUL
   
 }
 
+
 write.phyloseq.biom <- function(ps, filepath, fileprefix){
   
   #save ASV sequences to vector and rename for fasta format
@@ -134,8 +141,8 @@ write.phyloseq <- function(ps, filepath, fileprefix){
   f.onames <- phyloseq::taxa_names(ps)
   phyloseq::taxa_names(ps) <- paste("ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
   names(f.onames) <- paste0(">", phyloseq::taxa_names(ps))
-  
-  #generate otu table formatted for biom generation
+
+  #generate otu table 
   suppressWarnings(otu.tab <- as.matrix(t(phyloseq::otu_table(ps))))
   cb <- as.matrix(cbind(rownames(otu.tab), otu.tab))
   rcb <- as.matrix(rbind(colnames(cb), cb))
@@ -143,7 +150,7 @@ write.phyloseq <- function(ps, filepath, fileprefix){
   rownames(rcb) <- NULL
   colnames(rcb) <- NULL
   
-  #generate tax table formatted for biom generation
+  #generate tax table 
   tax.tab <- as.data.frame(phyloseq::tax_table(ps))
   tax.tab$taxonomy <- paste(tax.tab$Kingdom, tax.tab$Phylum, tax.tab$Class, 
                             tax.tab$Order, tax.tab$Family, tax.tab$Genus, tax.tab$Species, sep = ";")
@@ -152,7 +159,7 @@ write.phyloseq <- function(ps, filepath, fileprefix){
   rownames(cbt) <- NULL
   colnames(cbt) <- NULL
   
-  #generate sampledf table formatted for biom generation
+  #generate sampledf table 
   samdf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps)))
   cbs <- as.matrix(cbind(rownames(samdf), samdf))
   rcbs <- as.matrix(rbind(colnames(cbs), cbs))
@@ -177,6 +184,5 @@ write.phyloseq <- function(ps, filepath, fileprefix){
   #sampledf
   write.table(x = rcbs, file = stb, row.names = FALSE, col.names = FALSE, quote = FALSE, sep = "\t")
   
-  #return phyloseq object with taxa renamed to ASV1, etc.
   return(ps)
 }
