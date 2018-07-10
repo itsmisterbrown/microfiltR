@@ -2,7 +2,7 @@
 #all scripts written by BPB, 070418
 
 
-filter.threshold <- function(ps, Tmin=1e-4, Tmax=2e-4, Tstep=1e-5, controlID) {
+estimate.threshold <- function(ps, Tmin=1e-4, Tmax=2e-4, Tstep=1e-5, controlID) {
   
   #Build param lists
   l.t <- seq(from = Tmin, to = Tmax, by = Tstep)
@@ -38,7 +38,7 @@ filter.threshold <- function(ps, Tmin=1e-4, Tmax=2e-4, Tstep=1e-5, controlID) {
 }
 
 
-filter.object <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, TF=1e-4, PF=1e-5, return.all=TRUE){
+filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, TF=1e-4, PF=1e-5, return.all=TRUE){
   
   #per-sample filter function
   filterfx = function(x){
@@ -111,7 +111,7 @@ filter.object <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NUL
   
 }
 
-write.phyloseq.biom <- function(ps, filepath, fileprefix){
+write.dataset.biom <- function(ps, filepath, fileprefix){
   
   #save ASV sequences to vector and rename for fasta format
   f.onames <- phyloseq::taxa_names(ps)
@@ -139,7 +139,7 @@ write.phyloseq.biom <- function(ps, filepath, fileprefix){
   return(ps)
 }
 
-write.phyloseq <- function(ps, filepath, fileprefix){
+write.dataset <- function(ps, filepath, fileprefix){
   
   #save ASV sequences to vector and rename for fasta format
   f.onames <- phyloseq::taxa_names(ps)
