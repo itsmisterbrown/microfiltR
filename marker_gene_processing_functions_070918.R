@@ -8,6 +8,7 @@ estimate.threshold <- function(ps, Tmin=1e-4, Tmax=2e-4, Tstep=1e-5, controlID) 
   l.t <- seq(from = Tmin, to = Tmax, by = Tstep)
   nt <- length(l.t)
   tvec <- c()
+  svec <- c()
   
   for (i in 1:nt){
     tryCatch({
@@ -29,11 +30,19 @@ estimate.threshold <- function(ps, Tmin=1e-4, Tmax=2e-4, Tstep=1e-5, controlID) 
       
       tvec[i] <- nrow(otu.tab[which(otu.tab[,match(controlID, colnames(otu.tab))] != 0),])
       
+      svec[i] <- sum(phyloseq::sample_sums(ps.if))
+                     
     },
     error=function(e){cat("Warning :",conditionMessage(e), "\n")})
   }
   names(tvec) <- c(l.t)
-  return(tvec)
+  names(svec) <- c(l.t)
+  
+  # Build return list
+  l.return = list()
+    l.return[['ASVs in control at IF threshold']] <- tvec
+    l.return[['reads across dataset retained at IF threshold']] <- svec
+   return(l.return)
   
 }
 
