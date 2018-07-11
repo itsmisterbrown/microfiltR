@@ -2,13 +2,14 @@
 #all scripts written by BPB, 070418
 
 
-estimate.threshold <- function(ps, Tmin=1e-4, Tmax=2e-4, Tstep=1e-5, controlID) {
+estimate.threshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, controlID) {
   
   #Build param lists
-  l.t <- seq(from = Tmin, to = Tmax, by = Tstep)
+  l.t <- seq(from = WSmin, to = WSmax, by = WSstep)
   nt <- length(l.t)
   tvec <- c()
   svec <- c()
+  pvec <- c()
   
   for (i in 1:nt){
     tryCatch({
@@ -29,20 +30,20 @@ estimate.threshold <- function(ps, Tmin=1e-4, Tmax=2e-4, Tstep=1e-5, controlID) 
       }
       
       tvec[i] <- nrow(otu.tab[which(otu.tab[,match(controlID, colnames(otu.tab))] != 0),])
-      
       svec[i] <- sum(phyloseq::sample_sums(ps.if))
-                     
+      pvec[i] <- sum(phyloseq::sample_sums(ps.if))/sum(phyloseq::sample_sums(ps))*100
+      
     },
     error=function(e){cat("Warning :",conditionMessage(e), "\n")})
   }
   names(tvec) <- c(l.t)
   names(svec) <- c(l.t)
+  names(pvec) <- c(l.t)
   
-  # Build return list
-  l.return = list()
-    l.return[['ASVs in control at IF threshold']] <- tvec
-    l.return[['reads across dataset retained at IF threshold']] <- svec
-   return(l.return)
+  df <- as.data.frame(cbind(tvec, svec, pvec, as.numeric(paste0(names(tvec)))))
+  colnames(df) <- c("control.taxa.count", "read.count", "read.percent", "threshold.value")
+  rownames(df) <- seq(1:length(l.t))
+  df
   
 }
 
