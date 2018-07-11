@@ -48,11 +48,11 @@ estimate.threshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, controlI
 }
 
 
-filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, TF=1e-4, PF=1e-5, return.all=TRUE){
+filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, WSF=1e-4, PF=1e-5, return.all=TRUE){
   
   #per-sample filter function
   filterfx = function(x){
-    x[(x / sum(x)) < TF] <- 0
+    x[(x / sum(x)) < WSF] <- 0
     return(x)
   }
   #create unfiltered sample sum vector
@@ -101,7 +101,7 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
   
   #cbind vectors into df
   sstab <- cbind(ov, ifv, p.if, pfv, p.pf)
-  colnames(sstab) <- c("unfiltered.read.count", "filterI.read.count", "filterI.read.percent", "filterP.read.count", "filterP.read.percent")
+  colnames(sstab) <- c("unfiltered.read.count", "WSfiltered.read.count", "WSfiltered.read.percent", "Pfiltered.read.count", "Pfiltered.read.percent")
   
   # Build return list
   l.return = list()
