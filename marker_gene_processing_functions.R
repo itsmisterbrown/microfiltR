@@ -48,7 +48,14 @@ estimate.threshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, controlI
 }
 
 
-filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, WSF=1e-4, PF=1e-5, return.all=TRUE){
+filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, WSF=1e-4, PF=1e-5, minLIB=NULL, CVF=NULL, return.all=TRUE){
+  
+  #remove samples < minlib
+  if(is.null(minLIB)){
+    ps = ps
+  } else {
+    ps = phyloseq::prune_samples(phyloseq::sample_sums(ps)>=minLIB, ps)
+  }
   
   #per-sample filter function
   filterfx = function(x){
@@ -87,9 +94,15 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
   phyloseq::sample_data(ps.if) <- phyloseq::sample_data(sampledf.s)
   
   #dataset-wide prevalence filter %
-  #determine taxa sums for cutoff %
   prevf <- sum(phyloseq::taxa_sums(ps.if)) * PF
   ps.cf <- phyloseq::prune_taxa(taxa_sums(ps.if)>=prevf, ps.if)
+  #CV filter, if given
+  if(is.null(CVF)){
+    ps.cf <- ps.cf
+  } else {
+    ps.cf <- phyloseq::filter_taxa(ps.cf, function(x) sd(x)/mean(x) > CVF, TRUE)
+  }
+  
   #create prevalence filter sample sum vector
   pfv <- phyloseq::sample_sums(ps.cf)
   #calculate percent filtered, prevalence
@@ -101,7 +114,7 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
   
   #cbind vectors into df
   sstab <- cbind(ov, ifv, p.if, pfv, p.pf)
-  colnames(sstab) <- c("unfiltered.read.count", "WSfiltered.read.count", "WSfiltered.read.percent", "Pfiltered.read.count", "Pfiltered.read.percent")
+  colnames(sstab) <- c("unfiltered.read.count", "WSfiltered.read.count", "WSfiltered.read.percent", "ASfiltered.read.count", "ASfiltered.read.percent")
   
   # Build return list
   l.return = list()
@@ -120,7 +133,8 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
   return(l.return)
   
 }
-
+                                   
+                                   
 write.dataset.biom <- function(ps, filepath, fileprefix){
   
   #save ASV sequences to vector and rename for fasta format
