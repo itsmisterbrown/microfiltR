@@ -1,4 +1,4 @@
-# marker_gene_processing_scrips
+# marker gene filtering and processing functions
 accessory functions for processing microbial community data
 
 
