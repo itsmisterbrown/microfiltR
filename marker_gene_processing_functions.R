@@ -344,7 +344,7 @@ CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL, independent=FAL
   gp <- getPrev(ps = ps.ws, WSF = WSF, Pmin = Pmin, Pmax = Pmax, Pstep = Pstep)
   }
   
-  #create ASV df
+  #CREATE ASV DF
   #reload ps.ws
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   #build df vectors
@@ -366,7 +366,7 @@ CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL, independent=FAL
     prevp <- prev/phyloseq::nsamples(ps.ws) * 100
   }
 
-  #create df
+  #build df and rename
   df.asv <- cbind.data.frame(ts, tsp, prev, prevp, cv.asv, tax.tab)
   colnames(df.asv)[1:5] <- c("ASV.read.count", "ASV.read.percent", "ASV.prevalence", "ASV.prevalence.percent", "ASV.CV")
   rownames(df.asv) <- seq(1:nrow(df.asv))
@@ -408,16 +408,14 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
     ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   }
   
-  #create sampledf
-  sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
-  #create per sample filtered sample sum vector
+  #create WS filtered sample sum vector
   ifv <- phyloseq::sample_sums(ps.ws)
   #calculate percent filtered, individual
   p.if <- phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)*100
   
   asv.tab <- format.ASV.tab(ps.ws)
   
-  #control sample filtering
+  #CONTROL (METADATA-BASED) SAMPLE REMOVAL
   if(any(c(is.null(controlID), is.null(controlCAT), is.null(controlFACTOR)))){
     npos <- NULL
     tax.tab.subset <- NULL
@@ -434,6 +432,7 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
     rownames(ttsn) <- NULL
     
     #remove controls
+    sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
     filtered.names <- rownames(sampledf[which(sampledf[,match(controlCAT, colnames(sampledf))] != controlFACTOR),])
     sampledf.s <- as.data.frame(sampledf[filtered.names,])
     phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
