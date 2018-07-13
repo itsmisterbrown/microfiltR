@@ -254,8 +254,8 @@ estimate.WSthreshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, contro
       #FILTERING
       
       tvec[i] <- nrow(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
-      svec[i] <- sum(phyloseq::sample_sums(ps.if))
-      pvec[i] <- sum(phyloseq::sample_sums(ps.if))/sum(phyloseq::sample_sums(ps))*100
+      svec[i] <- sum(phyloseq::sample_sums(ps.ws))
+      pvec[i] <- sum(phyloseq::sample_sums(ps.ws))/sum(phyloseq::sample_sums(ps))*100
       
     },
     error=function(e){cat("Warning :",conditionMessage(e), "\n")})
