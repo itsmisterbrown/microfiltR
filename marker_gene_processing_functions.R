@@ -47,6 +47,136 @@ estimate.WSthreshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, contro
   
 }
 
+estimate.ASthreshold <- function(ps, WSF, Pmin=NULL, Pmax=NULL, Pstep=NULL, CVmin=NULL, 
+                                 CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL, independent=FALSE){
+  
+  if(is.null(WSF)){
+    message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
+  }
+  #perform WS filtering
+  filterfx = function(x){
+    x[(x / sum(x)) < WSF] <- 0
+    return(x)
+  }
+  
+  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  
+  if(isTRUE(independent)){
+    ps.wsi <- ps.ws
+  }
+  
+  #RELATIVE ABUNDANCE
+  #build param lists
+  if(any(is.null(RAFmin), is.null(RAFmax), is.null(RAFstep))){
+    dfr <- NULL
+  } else {
+    l.r <- seq(from = RAFmin, to = RAFmax, by = RAFstep)
+    nr <- length(l.r)
+    rvec <- c()
+    
+    for (i in 1:nr){
+      tryCatch({
+        #loop through values and filter
+        raf <- sum(phyloseq::taxa_sums(ps.ws)) * l.r[i]
+        ps.ws <- phyloseq::prune_taxa(taxa_sums(ps.ws)>=raf, ps.ws)
+        rvec[i] <- phyloseq::ntaxa(ps.ws)
+        
+      },
+      error=function(e){cat("Warning :r",conditionMessage(e), "\n")})
+    }
+    #create df
+    dfr <- as.data.frame(cbind(l.r, rvec))
+    colnames(dfr) <- c("relative.abundance.filter", "ASV.count")
+    rownames(dfr) <- seq(1:length(l.r))
+  }
+  
+  #revert, if desired
+  if(isTRUE(independent)){
+    ps.ws <- ps.wsi
+  }
+  
+  #CV
+  #build param lists
+  if(any(is.null(CVmin), is.null(CVmax), is.null(CVstep))){
+    dfc <- NULL
+  } else {
+    l.c <- seq(from = CVmin, to = CVmax, by = CVstep)
+    nc <- length(l.c)
+    cvec <- c()
+    
+    for (i in 1:nc){
+      tryCatch({
+        #loop through values and filter
+        ps.ws <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) > l.c[i], TRUE)
+        cvec[i] <- phyloseq::ntaxa(ps.ws)
+        
+      },
+      error=function(e){cat("Warning :c",conditionMessage(e), "\n")})
+    }
+    #create df
+    dfc <- as.data.frame(cbind(l.c, cvec))
+    colnames(dfc) <- c("CV.filter", "ASV.count")
+    rownames(dfc) <- seq(1:length(l.c))
+  }
+  
+  #revert, if desired
+  if(isTRUE(independent)){
+    ps.ws <- ps.wsi
+  }
+    
+  #PREVALENCE
+  #Build param lists
+  if(any(is.null(Pmin), is.null(Pmax), is.null(Pstep))){
+    dfp <- NULL
+  } else {
+  l.p <- seq(from = Pmin, to = Pmax, by = Pstep)
+  np <- length(l.p)
+  pvec <- c()
+  
+  for (i in 1:np){
+    tryCatch({
+      #loop through values
+      if(as.logical(class(phyloseq::otu_table(ps.ws))[1] == "otu_table") && 
+         as.logical(taxa_are_rows(phyloseq::otu_table(ps.ws)) == TRUE)){
+        otu.tab <- as.matrix(phyloseq::otu_table(ps.ws))
+      } else {
+        otu.tab <- as.matrix(t(phyloseq::otu_table(ps.ws)))
+      }
+      #get prevalence list for each taxon
+      taxa.plist <- apply(X = otu.tab, MARGIN = 1, FUN = function(x){names(x)[which(x!=0)]})
+      #build vector of sample counts per ASV
+      taxa.cvec <- c()
+      for(j in 1:length(taxa.plist)){
+        taxa.cvec[j] <- length(taxa.plist[[j]])
+      }
+      #apply ASV names and filter ASVs below PF
+      names(taxa.cvec) <- names(taxa.plist)
+      prev.count <- phyloseq::nsamples(ps.ws)* l.p[i]
+      taxa.cvec.f <- taxa.cvec[which(taxa.cvec > prev.count)]
+      tn.cvec.f <- names(taxa.cvec.f)
+      #filter ps
+      ps.ws <- phyloseq::prune_taxa(tn.cvec.f, ps.ws)
+      pvec[i] <- phyloseq::ntaxa(ps.ws)
+      
+    },
+    error=function(e){cat("Warning :p",conditionMessage(e), "\n")})
+  }
+  
+  #create df
+  dfp <- as.data.frame(cbind(l.p, pvec))
+  colnames(dfp) <- c("prevalence.filter", "ASV.count")
+  rownames(dfp) <- seq(1:length(l.p))
+  }
+  
+  # Build return list
+  l.return = list()
+    l.return[['relative.abundance.filtering.stats']] <- dfr
+    l.return[['CV.filtering.stats']] <- dfc
+    l.return[['prevalence.filtering.stats']] <- dfp
+    
+  return(l.return)
+}
+
 
 filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, minLIB=NULL, WSF=NULL, RAF=NULL, CVF=NULL, PF=NULL, return.all=TRUE){
   
