@@ -527,7 +527,7 @@ write.dataset <- function(ps, filepath, fileprefix){
   
   #generate otu table formatted for biom generation
   asv.tab <- format.ASV.tab(ps)
-  suppressWarnings(asv.tab <- as.matrix(asv.tab)
+  suppressWarnings(asv.tab <- as.matrix(asv.tab))
   cb <- as.matrix(cbind(rownames(asv.tab), asv.tab))
   rcb <- as.matrix(rbind(colnames(cb), cb))
   rcb[1,1] <- "#ASVID"
