@@ -442,8 +442,10 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
   #relative abundance filter
   if(is.null(RAF)){
     ps.ws <- ps.ws
+    raf <- NULL
   } else {
     ps.ws <- RAfilter(ps = ps.ws, WSF = WSF, RAF = RAF)
+    raf <- RAF * sum(phyloseq::taxa_sums(ps.ws))
   }
   
   #CV filter
@@ -459,35 +461,35 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
   } else {
     ps.ws <- Pfilter(ps = ps.ws, WSF = WSF, PF = PF)
   }
-    #create AS filter sample sum vector
-    pfv <- phyloseq::sample_sums(ps.ws)
-    #calculate percent filtered, prevalence
-    p.pf <- suppressWarnings(phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)[names(phyloseq::sample_sums(ps.ws))]*100)
+  #create AS filter sample sum vector
+  pfv <- phyloseq::sample_sums(ps.ws)
+  #calculate percent filtered, prevalence
+  p.pf <- suppressWarnings(phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)[names(phyloseq::sample_sums(ps.ws))]*100)
+  
+  #order vectors
+  pfv <- pfv[names(p.if)]
+  p.pf <- p.pf[names(p.if)]
+  
+  #cbind vectors into df
+  sstab <- cbind(ov, ifv, p.if, pfv, p.pf)
+  colnames(sstab) <- c("unfiltered.read.count", "WSfiltered.read.count", "WSfiltered.read.percent", "ASfiltered.read.count", "ASfiltered.read.percent")
+  
+  # Build return list
+  l.return = list()
+  if (return.all==FALSE){
+    return(ps.ws)
+  } else {
+    l.return[['filtered.phyloseq']] <- ps.ws
+    l.return[['ntaxa.in.control']] <- npos
+    l.return[['control.taxa.sequences']] <- rownames(tax.tab.subset)
+    l.return[['taxonomy.of.control.taxa']] <- ttsn
+    l.return[['read.count.table']] <- sstab
+    l.return[['relative.abundance.filter.read.count']] <- raf
+    l.return[['prevalence.filter.sample.count']] <- prev.count
     
-    #order vectors
-    pfv <- pfv[names(p.if)]
-    p.pf <- p.pf[names(p.if)]
-    
-    #cbind vectors into df
-    sstab <- cbind(ov, ifv, p.if, pfv, p.pf)
-    colnames(sstab) <- c("unfiltered.read.count", "WSfiltered.read.count", "WSfiltered.read.percent", "ASfiltered.read.count", "ASfiltered.read.percent")
-    
-    # Build return list
-    l.return = list()
-    if (return.all==FALSE){
-      return(ps.ws)
-    } else {
-      l.return[['filtered.phyloseq']] <- ps.ws
-      l.return[['ntaxa.in.control']] <- npos
-      l.return[['control.taxa.sequences']] <- rownames(tax.tab.subset)
-      l.return[['taxonomy.of.control.taxa']] <- ttsn
-      l.return[['read.count.table']] <- sstab
-      l.return[['relative.abundance.filter.read.count']] <- raf
-      l.return[['prevalence.filter.sample.count']] <- prev.count
-      
-    }
-    
-    return(l.return)
+  }
+  
+  return(l.return)
 }
 
 write.dataset.biom <- function(ps, filepath, fileprefix){
@@ -573,5 +575,4 @@ write.dataset <- function(ps, filepath, fileprefix){
 }
 
 
-  
-  
+
