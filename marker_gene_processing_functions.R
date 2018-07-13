@@ -525,7 +525,7 @@ write.dataset <- function(ps, filepath, fileprefix){
   phyloseq::taxa_names(ps) <- paste("ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
   names(f.onames) <- paste0(">", phyloseq::taxa_names(ps))
   
-  #generate otu table formatted for biom generation
+  #generate asv table formatted for biom generation
   asv.tab <- format.ASV.tab(ps)
   suppressWarnings(asv.tab <- as.matrix(asv.tab))
   cb <- as.matrix(cbind(rownames(asv.tab), asv.tab))
