@@ -271,9 +271,9 @@ estimate.WSthreshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, contro
   
 }
 
-estimate.ASthreshold <- function(ps, WSF, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, minLIB=NULL, Pmin=NULL, 
+estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, minLIB=NULL, Pmin=NULL, 
                                  Pmax=NULL, Pstep=NULL, CVmin=NULL, 
-                                 CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL, independent=FALSE){
+                                 CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL){
   
   if(is.null(WSF)){
     message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
@@ -306,10 +306,6 @@ estimate.ASthreshold <- function(ps, WSF, controlID=NULL, controlCAT=NULL, contr
     phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
   }
   
-  if(isTRUE(independent)){
-    ps.wsi <- ps.ws
-  }
-  
   #RELATIVE ABUNDANCE
   #build param lists
   if(any(is.null(RAFmin), is.null(RAFmax), is.null(RAFstep))){
@@ -318,9 +314,9 @@ estimate.ASthreshold <- function(ps, WSF, controlID=NULL, controlCAT=NULL, contr
     gr <- getRA(ps = ps.ws, WSF = WSF, RAFmin = RAFmin, RAFmax = RAFmax, RAFstep = RAFstep)
   }
   
-  #revert, if desired
-  if(isTRUE(independent)){
-    ps.ws <- ps.wsi
+  #incorporate fixed threshold
+  if(!is.null(RAF)){
+    ps.ws <- RAfilter(ps = ps.ws, WSF = WSF, RAF = RAF)
   }
   
   #CV
@@ -331,9 +327,9 @@ estimate.ASthreshold <- function(ps, WSF, controlID=NULL, controlCAT=NULL, contr
     gc <- getCV(ps = ps.ws, WSF = WSF, CVmin = CVmin, CVmax = CVmax, CVstep = CVstep)
   }
   
-  #revert, if desired
-  if(isTRUE(independent)){
-    ps.ws <- ps.wsi
+  #incorporate fixed threshold
+  if(!is.null(CVF)){
+    ps.ws <- CVfilter(ps = ps.ws, WSF = WSF, CVF = CVF)
   }
   
   #PREVALENCE
@@ -573,6 +569,5 @@ write.dataset <- function(ps, filepath, fileprefix){
   #return phyloseq object with taxa renamed to ASV1, etc.
   return(ps)
 }
-
 
 
