@@ -2,7 +2,7 @@
 #all scripts written by BPB, 070418
 
 
-estimate.threshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, controlID) {
+estimate.WSthreshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, controlID) {
   
   #Build param lists
   l.t <- seq(from = WSmin, to = WSmax, by = WSstep)
