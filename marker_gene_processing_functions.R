@@ -52,8 +52,8 @@ getCV <- function(ps, WSF=NULL, CVmin, CVmax, CVstep){
   
   dfc
 }
-               
- getRA <- function(ps, WSF=NULL, RAFmin, RAFmax, RAFstep){
+
+getRA <- function(ps, WSF=NULL, RAFmin, RAFmax, RAFstep){
   
   if(is.null(WSF)){
     message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
@@ -90,12 +90,12 @@ getCV <- function(ps, WSF=NULL, CVmin, CVmax, CVstep){
     colnames(dfr) <- c("relative.abundance.filter", "ASV.count")
     rownames(dfr) <- seq(1:length(l.r))
   }
-    
-    dfr
+  
+  dfr
 }
-               
-getPrev <- function(ps, WSF=NULL, Pmin, Pmax, Pstep){
 
+getPrev <- function(ps, WSF=NULL, Pmin, Pmax, Pstep){
+  
   if(is.null(WSF)){
     message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
   }
@@ -180,7 +180,7 @@ RAfilter<- function(ps, WSF=NULL, RAF){
   
   if(is.null(WSF)){
     message('Warning: WS filtering is highly recommended to reduce cross contamination')
-    }
+  }
   
   #perform WS filtering
   filterfx = function(x){
@@ -194,7 +194,7 @@ RAfilter<- function(ps, WSF=NULL, RAF){
   raf <- sum(phyloseq::taxa_sums(ps.ws)) * RAF
   ps.ws <- phyloseq::prune_taxa(taxa_sums(ps.ws)>=raf, ps.ws)
   ps.ws
-
+  
 }
 
 Pfilter <- function(ps, WSF=NULL, PF){
@@ -227,7 +227,7 @@ Pfilter <- function(ps, WSF=NULL, PF){
   #perform filter
   ps.ws <- phyloseq::prune_taxa(tn.cvec.f, ps.ws)
   ps.ws
-
+  
 }
 
 #WRAPPER FUNCTIONS
@@ -272,8 +272,8 @@ estimate.WSthreshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, contro
 }
 
 estimate.ASthreshold <- function(ps, WSF, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, minLIB=NULL, Pmin=NULL, 
-Pmax=NULL, Pstep=NULL, CVmin=NULL, 
-CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL, independent=FALSE){
+                                 Pmax=NULL, Pstep=NULL, CVmin=NULL, 
+                                 CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL, independent=FALSE){
   
   if(is.null(WSF)){
     message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
@@ -298,12 +298,12 @@ CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL, independent=FAL
   if(any(c(is.null(controlID), is.null(controlCAT), is.null(controlFACTOR)))){
     message('Warning: if you plan to remove controls during filtering, then it is recommended to remove during estimation')
   } else {
-  #create sampledf
-  sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
-  #remove controls
-  filtered.names <- rownames(sampledf[which(sampledf[,match(controlCAT, colnames(sampledf))] != controlFACTOR),])
-  sampledf.s <- as.data.frame(sampledf[filtered.names,])
-  phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
+    #create sampledf
+    sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
+    #remove controls
+    filtered.names <- rownames(sampledf[which(sampledf[,match(controlCAT, colnames(sampledf))] != controlFACTOR),])
+    sampledf.s <- as.data.frame(sampledf[filtered.names,])
+    phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
   }
   
   if(isTRUE(independent)){
@@ -335,13 +335,13 @@ CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL, independent=FAL
   if(isTRUE(independent)){
     ps.ws <- ps.wsi
   }
-    
+  
   #PREVALENCE
   #Build param lists
   if(any(is.null(Pmin), is.null(Pmax), is.null(Pstep))){
     gp$prevalence.filtering.stats <- NULL
   } else {
-  gp <- getPrev(ps = ps.ws, WSF = WSF, Pmin = Pmin, Pmax = Pmax, Pstep = Pstep)
+    gp <- getPrev(ps = ps.ws, WSF = WSF, Pmin = Pmin, Pmax = Pmax, Pstep = Pstep)
   }
   
   #CREATE ASV DF
@@ -365,7 +365,7 @@ CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL, independent=FAL
     prev <- taxa.cvec[namevec]
     prevp <- prev/phyloseq::nsamples(ps.ws) * 100
   }
-
+  
   #build df and rename
   df.asv <- cbind.data.frame(ts, tsp, prev, prevp, cv.asv, tax.tab)
   colnames(df.asv)[1:5] <- c("ASV.read.count", "ASV.read.percent", "ASV.prevalence", "ASV.prevalence.percent", "ASV.CV")
@@ -373,11 +373,11 @@ CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL, independent=FAL
   
   # Build return list
   l.return = list()
-    l.return[['relative.abundance.filtering.stats']] <- gr
-    l.return[['CV.filtering.stats']] <- gc
-    l.return[['prevalence.filtering.stats']] <- gp$prevalence.filtering.stats
-    l.return[['ASV.filtering.stats']] <- df.asv
-    
+  l.return[['relative.abundance.filtering.stats']] <- gr
+  l.return[['CV.filtering.stats']] <- gc
+  l.return[['prevalence.filtering.stats']] <- gp$prevalence.filtering.stats
+  l.return[['ASV.filtering.stats']] <- df.asv
+  
   return(l.return)
 }
 
@@ -458,38 +458,38 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
     ps.ws <- ps.ws
   } else {
     ps.ws <- Pfilter(ps = ps.ws, WSF = WSF, PF = PF)
-  
-  #create AS filter sample sum vector
-  pfv <- phyloseq::sample_sums(ps.ws)
-  #calculate percent filtered, prevalence
-  p.pf <- suppressWarnings(phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)[names(phyloseq::sample_sums(ps.ws))]*100)
-  
-  #order vectors
-  pfv <- pfv[names(p.if)]
-  p.pf <- p.pf[names(p.if)]
-  
-  #cbind vectors into df
-  sstab <- cbind(ov, ifv, p.if, pfv, p.pf)
-  colnames(sstab) <- c("unfiltered.read.count", "WSfiltered.read.count", "WSfiltered.read.percent", "ASfiltered.read.count", "ASfiltered.read.percent")
-  
-  # Build return list
-  l.return = list()
-  if (return.all==FALSE){
-    return(ps.ws)
-  } else {
-    l.return[['filtered.phyloseq']] <- ps.ws
-    l.return[['ntaxa.in.control']] <- npos
-    l.return[['control.taxa.sequences']] <- rownames(tax.tab.subset)
-    l.return[['taxonomy.of.control.taxa']] <- ttsn
-    l.return[['read.count.table']] <- sstab
-    l.return[['relative.abundance.filter.read.count']] <- raf
-    l.return[['prevalence.filter.sample.count']] <- prev.count
-    
   }
-  
-  return(l.return)
-} 
-                                   
+    #create AS filter sample sum vector
+    pfv <- phyloseq::sample_sums(ps.ws)
+    #calculate percent filtered, prevalence
+    p.pf <- suppressWarnings(phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)[names(phyloseq::sample_sums(ps.ws))]*100)
+    
+    #order vectors
+    pfv <- pfv[names(p.if)]
+    p.pf <- p.pf[names(p.if)]
+    
+    #cbind vectors into df
+    sstab <- cbind(ov, ifv, p.if, pfv, p.pf)
+    colnames(sstab) <- c("unfiltered.read.count", "WSfiltered.read.count", "WSfiltered.read.percent", "ASfiltered.read.count", "ASfiltered.read.percent")
+    
+    # Build return list
+    l.return = list()
+    if (return.all==FALSE){
+      return(ps.ws)
+    } else {
+      l.return[['filtered.phyloseq']] <- ps.ws
+      l.return[['ntaxa.in.control']] <- npos
+      l.return[['control.taxa.sequences']] <- rownames(tax.tab.subset)
+      l.return[['taxonomy.of.control.taxa']] <- ttsn
+      l.return[['read.count.table']] <- sstab
+      l.return[['relative.abundance.filter.read.count']] <- raf
+      l.return[['prevalence.filter.sample.count']] <- prev.count
+      
+    }
+    
+    return(l.return)
+}
+
 write.dataset.biom <- function(ps, filepath, fileprefix){
   
   #save ASV sequences to vector and rename for fasta format
@@ -571,3 +571,7 @@ write.dataset <- function(ps, filepath, fileprefix){
   #return phyloseq object with taxa renamed to ASV1, etc.
   return(ps)
 }
+
+
+  
+  
