@@ -53,6 +53,7 @@ estimate.ASthreshold <- function(ps, WSF, Pmin=NULL, Pmax=NULL, Pstep=NULL, CVmi
   if(is.null(WSF)){
     message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
   }
+  
   #perform WS filtering
   filterfx = function(x){
     x[(x / sum(x)) < WSF] <- 0
@@ -132,23 +133,25 @@ estimate.ASthreshold <- function(ps, WSF, Pmin=NULL, Pmax=NULL, Pstep=NULL, CVmi
   l.p <- seq(from = Pmin, to = Pmax, by = Pstep)
   np <- length(l.p)
   pvec <- c()
+  taxa.cvec <- c()
+  
+  #ASV table error protection
+  if(as.logical(class(phyloseq::otu_table(ps.ws))[1] == "otu_table") && 
+     as.logical(taxa_are_rows(phyloseq::otu_table(ps.ws)) == TRUE)){
+    otu.tab <- as.matrix(phyloseq::otu_table(ps.ws))
+  } else {
+    otu.tab <- as.matrix(t(phyloseq::otu_table(ps.ws)))
+  }
+  
+  #get prevalence list for each taxon
+  taxa.plist <- apply(X = otu.tab, MARGIN = 1, FUN = function(x){names(x)[which(x!=0)]})
+  #populate vector of sample counts per ASV
+  for(j in 1:length(taxa.plist)){
+    taxa.cvec[j] <- length(taxa.plist[[j]])
+  }
   
   for (i in 1:np){
     tryCatch({
-      #loop through values
-      if(as.logical(class(phyloseq::otu_table(ps.ws))[1] == "otu_table") && 
-         as.logical(taxa_are_rows(phyloseq::otu_table(ps.ws)) == TRUE)){
-        otu.tab <- as.matrix(phyloseq::otu_table(ps.ws))
-      } else {
-        otu.tab <- as.matrix(t(phyloseq::otu_table(ps.ws)))
-      }
-      #get prevalence list for each taxon
-      taxa.plist <- apply(X = otu.tab, MARGIN = 1, FUN = function(x){names(x)[which(x!=0)]})
-      #build vector of sample counts per ASV
-      taxa.cvec <- c()
-      for(j in 1:length(taxa.plist)){
-        taxa.cvec[j] <- length(taxa.plist[[j]])
-      }
       #apply ASV names and filter ASVs below PF
       names(taxa.cvec) <- names(taxa.plist)
       prev.count <- phyloseq::nsamples(ps.ws)* l.p[i]
@@ -168,11 +171,52 @@ estimate.ASthreshold <- function(ps, WSF, Pmin=NULL, Pmax=NULL, Pstep=NULL, CVmi
   rownames(dfp) <- seq(1:length(l.p))
   }
   
+  #create ASV df
+  #reload ps.ws
+  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  #build df vectors
+  ts <- taxa_sums(ps.ws)
+  tsp <- taxa_sums(ps.ws)/sum(taxa_sums(ps.ws)) * 100
+  namevec <- names(ts)
+  #set tvec to null if no prev stats desired
+  if(any(is.null(Pmin), is.null(Pmax), is.null(Pstep))){
+    prev <- NULL
+    prevp <- NULL
+  } else {
+    #revert to unfiltered taxa.cvec and otu.tab
+    taxa.cvec <- c()
+    #ASV table error protection
+    if(as.logical(class(phyloseq::otu_table(ps.ws))[1] == "otu_table") && 
+       as.logical(taxa_are_rows(phyloseq::otu_table(ps.ws)) == TRUE)){
+      otu.tab <- as.matrix(phyloseq::otu_table(ps.ws))
+    } else {
+      otu.tab <- as.matrix(t(phyloseq::otu_table(ps.ws)))
+    }
+    #get prevalence list for each taxon
+    taxa.plist <- apply(X = otu.tab, MARGIN = 1, FUN = function(x){names(x)[which(x!=0)]})
+    #populate vector of sample counts per ASV
+    for(j in 1:length(taxa.plist)){
+      taxa.cvec[j] <- length(taxa.plist[[j]])
+    }
+    names(taxa.cvec) <- names(taxa.plist)
+    prev <- as.numeric(paste0(taxa.cvec[namevec])) 
+    prevp <- as.numeric(paste0(taxa.cvec[namevec]))/phyloseq::nsamples(ps.ws) * 100
+  }
+  
+  #back to building df vectors
+  cv.asv <- apply(otu.tab[namevec,], MARGIN = 1, FUN = function(x) sd(x)/mean(x))
+  tax.tab <- phyloseq::tax_table(ps.ws)[namevec,]
+  #create df
+  df.asv <- cbind.data.frame(ts, tsp, prev, prevp, cv.asv, tax.tab)
+  colnames(df.asv)[1:5] <- c("ASV.read.count", "ASV.read.percent", "ASV.prevalence", "ASV.prevalence.percent", "ASV.CV")
+  rownames(df.asv) <- seq(1:nrow(df.asv))
+  
   # Build return list
   l.return = list()
     l.return[['relative.abundance.filtering.stats']] <- dfr
     l.return[['CV.filtering.stats']] <- dfc
     l.return[['prevalence.filtering.stats']] <- dfp
+    l.return[['ASV.filtering.stats']] <- df.asv
     
   return(l.return)
 }
