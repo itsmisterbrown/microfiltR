@@ -214,6 +214,8 @@ Pfilter <- function(ps, WSF=NULL, PF){
   #format asv table
   asv.tab <- format.ASV.tab(ps.ws)
   
+  #create sample count vector
+  taxa.cvec <- c()
   #get prevalence list for each taxon
   taxa.plist <- apply(X = asv.tab, MARGIN = 1, FUN = function(x){names(x)[which(x!=0)]})
   #populate vector of sample counts per ASV
