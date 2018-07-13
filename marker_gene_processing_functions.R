@@ -48,7 +48,7 @@ estimate.threshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, controlI
 }
 
 
-filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, WSF=1e-4, PF=1e-5, minLIB=NULL, CVF=NULL, return.all=TRUE){
+filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, minLIB=NULL, WSF=NULL, RAF=NULL, CVF=NULL, PF=NULL, return.all=TRUE){
   
   #remove samples < minlib
   if(is.null(minLIB)){
@@ -57,32 +57,46 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
     ps = phyloseq::prune_samples(phyloseq::sample_sums(ps)>=minLIB, ps)
   }
   
-  #per-sample filter function
+  #create unfiltered sample sum vector
+  ov <- phyloseq::sample_sums(ps)
+  
+  #WS filtering
+  if(is.null(WSF)){
+    ps.ws <- ps
+  } else {
   filterfx = function(x){
     x[(x / sum(x)) < WSF] <- 0
     return(x)
   }
-  #create unfiltered sample sum vector
-  ov <- phyloseq::sample_sums(ps)
   
-  #create filtered object
-  ps.if <- phyloseq::transform_sample_counts(ps, fun = filterfx)
-  sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.if)))
-  #create per sample filtered sample sum vector
-  ifv <- phyloseq::sample_sums(ps.if)
-  #calculate percent filtered, individual
-  p.if <- phyloseq::sample_sums(ps.if)/phyloseq::sample_sums(ps)*100
-  
-  #prevalence filtering
-  if(as.logical(class(phyloseq::otu_table(ps.if))[1] == "otu_table") && 
-     as.logical(taxa_are_rows(phyloseq::otu_table(ps.if)) == TRUE)){
-    otu.tab <- as.matrix(phyloseq::otu_table(ps.if))
-  } else {
-    otu.tab <- as.matrix(t(phyloseq::otu_table(ps.if)))
+  #create WS filtered object
+  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   }
+  sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
+  #create per sample filtered sample sum vector
+  ifv <- phyloseq::sample_sums(ps.ws)
+  #calculate percent filtered, individual
+  p.if <- phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)*100
+  
+  #ASV table error protection
+  if(as.logical(class(phyloseq::otu_table(ps.ws))[1] == "otu_table") && 
+     as.logical(taxa_are_rows(phyloseq::otu_table(ps.ws)) == TRUE)){
+    otu.tab <- as.matrix(phyloseq::otu_table(ps.ws))
+  } else {
+    otu.tab <- as.matrix(t(phyloseq::otu_table(ps.ws)))
+  }
+  
+  #control sample filtering
+  if(any(c(is.null(controlID), is.null(controlCAT), is.null(controlFACTOR)))){
+    npos <- NULL
+    tax.tab.subset <- NULL
+    ttsn <- NULL
+  } else {
+  #control taxa count
   npos <- nrow(otu.tab[which(otu.tab[,match(controlID, colnames(otu.tab))] != 0),])
+  
   #taxonomy of taxa in positive control
-  tax.tab <- phyloseq::tax_table(ps.if)
+  tax.tab <- phyloseq::tax_table(ps.ws)
   taxanames.control <- rownames(otu.tab[which(otu.tab[,match(controlID, colnames(otu.tab))] != 0),])
   tax.tab.subset <- tax.tab[taxanames.control] #taxonomy of taxa in positive control
   ttsn <- tax.tab.subset
@@ -91,22 +105,57 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
   #remove controls
   filtered.names <- rownames(sampledf[which(sampledf[,match(controlCAT, colnames(sampledf))] != controlFACTOR),])
   sampledf.s <- as.data.frame(sampledf[filtered.names,])
-  phyloseq::sample_data(ps.if) <- phyloseq::sample_data(sampledf.s)
-  
-  #dataset-wide prevalence filter %
-  prevf <- sum(phyloseq::taxa_sums(ps.if)) * PF
-  ps.cf <- phyloseq::prune_taxa(taxa_sums(ps.if)>=prevf, ps.if)
-  #CV filter, if given
-  if(is.null(CVF)){
-    ps.cf <- ps.cf
-  } else {
-    ps.cf <- phyloseq::filter_taxa(ps.cf, function(x) sd(x)/mean(x) > CVF, TRUE)
+  phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
   }
   
-  #create prevalence filter sample sum vector
-  pfv <- phyloseq::sample_sums(ps.cf)
+  #AS filtering
+  #relative abundance filter
+  if(is.null(RAF)){
+    ps.ws <- ps.ws
+  } else {
+    raf <- sum(phyloseq::taxa_sums(ps.ws)) * RAF
+    ps.ws <- phyloseq::prune_taxa(taxa_sums(ps.ws)>=raf, ps.ws)
+  }
+  
+  #CV filter
+  if(is.null(CVF)){
+    ps.ws <- ps.ws
+  } else {
+    ps.ws <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) > CVF, TRUE)
+  }
+  
+  #prevalence filter
+  if(is.null(PF)){
+    ps.ws <- ps.ws
+  } else {
+    #more ASV table error protection
+    if(as.logical(class(phyloseq::otu_table(ps.ws))[1] == "otu_table") && 
+       as.logical(taxa_are_rows(phyloseq::otu_table(ps.ws)) == TRUE)){
+      otu.tab <- as.matrix(phyloseq::otu_table(ps.ws))
+    } else {
+      otu.tab <- as.matrix(t(phyloseq::otu_table(ps.ws)))
+    }
+    #get prevalence list for each taxon
+    taxa.plist <- apply(X = otu.tab, MARGIN = 1, FUN = function(x){names(x)[which(x!=0)]})
+    #build vector of sample counts per ASV
+    taxa.cvec <- c()
+    for(i in 1:length(taxa.plist)){
+      taxa.cvec[i] <- length(taxa.plist[[i]])
+    }
+    #apply ASV names and filter ASVs below PF
+    names(taxa.cvec) <- names(taxa.plist)
+    prev.count <- phyloseq::nsamples(ps.ws)*PF
+    taxa.cvec.f <- taxa.cvec[which(taxa.cvec > prev.count)]
+    tn.cvec.f <- names(taxa.cvec.f)
+    #filter ps
+    ps.ws <- phyloseq::prune_taxa(tn.cvec.f, ps.ws)
+    
+  }
+  
+  #create AS filter sample sum vector
+  pfv <- phyloseq::sample_sums(ps.ws)
   #calculate percent filtered, prevalence
-  p.pf <- suppressWarnings(phyloseq::sample_sums(ps.cf)/phyloseq::sample_sums(ps)[names(phyloseq::sample_sums(ps.cf))]*100)
+  p.pf <- suppressWarnings(phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)[names(phyloseq::sample_sums(ps.ws))]*100)
   
   #order vectors
   pfv <- pfv[names(p.if)]
@@ -119,20 +168,21 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
   # Build return list
   l.return = list()
   if (return.all==FALSE){
-    return(ps.cf)
+    return(ps.ws)
   } else {
-    l.return[['filtered.phyloseq']] <- ps.cf
+    l.return[['filtered.phyloseq']] <- ps.ws
     l.return[['ntaxa.in.control']] <- npos
     l.return[['control.taxa.sequences']] <- rownames(tax.tab.subset)
     l.return[['taxonomy.of.control.taxa']] <- ttsn
     l.return[['read.count.table']] <- sstab
-    l.return[['prevalence.filter.threshold']] <- prevf
+    l.return[['relative.abundance.filter.read.count']] <- raf
+    l.return[['prevalence.filter.sample.count']] <- prev.count
     
   }
   
   return(l.return)
-  
 }
+
                                    
                                    
 write.dataset.biom <- function(ps, filepath, fileprefix){
