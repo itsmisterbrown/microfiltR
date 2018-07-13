@@ -458,10 +458,11 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
     ps.ws <- ps.ws
   } else {
     ps.ws <- Pfilter(ps = ps.ws, WSF = WSF, PF = PF)
+    prev.count <- phyloseq::nsamples(ps.ws)* PF
   }
   #create AS filter sample sum vector
   pfv <- phyloseq::sample_sums(ps.ws)
-  #calculate percent filtered, prevalence
+  #calculate percent filtered, AS
   p.pf <- suppressWarnings(phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)[names(phyloseq::sample_sums(ps.ws))]*100)
   
   #order vectors
