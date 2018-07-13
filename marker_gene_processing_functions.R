@@ -296,7 +296,7 @@ estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID
   
   #control sample filtering
   if(any(c(is.null(controlID), is.null(controlCAT), is.null(controlFACTOR)))){
-    message('Warning: if you plan to remove controls during filtering, then it is recommended to remove during estimation')
+    message('If you plan to remove controls during filtering, then it is recommended to remove during estimation')
   } else {
     #create sampledf
     sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
