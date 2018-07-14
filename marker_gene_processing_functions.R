@@ -456,9 +456,10 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
   #prevalence filter
   if(is.null(PF)){
     ps.ws <- ps.ws
+    prev.count <- NULL
   } else {
     ps.ws <- Pfilter(ps = ps.ws, WSF = WSF, PF = PF)
-    prev.count <- phyloseq::nsamples(ps.ws)* PF
+    prev.count <- phyloseq::nsamples(ps.ws) * PF
   }
   #create AS filter sample sum vector
   pfv <- phyloseq::sample_sums(ps.ws)
