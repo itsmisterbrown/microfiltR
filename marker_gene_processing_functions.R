@@ -55,6 +55,8 @@ getCV <- function(ps, WSF=NULL, CVrange, CVstep){
       error=function(e){cat("Warning :c",conditionMessage(e), "\n")})
     }
     #create df
+    #make both vectors same length and add NAs if CV filter zeroed out ASV table
+    length(cvec) <- length(l.c)
     dfc <- as.data.frame(cbind(l.c, cvec))
     colnames(dfc) <- c("CV.filter", "ASV.count")
     rownames(dfc) <- seq(1:length(l.c))
@@ -96,6 +98,8 @@ getRA <- function(ps, WSF=NULL, RAFrange, RAFstep){
       error=function(e){cat("Warning :r",conditionMessage(e), "\n")})
     }
     #create df
+    #make both vectors same length and add NAs if RF filter zeroed out ASV table
+    length(rvec) <- length(l.r)
     dfr <- as.data.frame(cbind(l.r, rvec))
     colnames(dfr) <- c("relative.abundance.filter", "ASV.count")
     rownames(dfr) <- seq(1:length(l.r))
@@ -150,6 +154,8 @@ getPrev <- function(ps, WSF=NULL, Prange, Pstep){
   }
   
   #create df
+  #make both vectors same length and add NAs if PF filter zeroed out ASV table
+  length(pvec) <- length(l.p)
   dfp <- cbind.data.frame(l.p, pvec)
   colnames(dfp) <- c("prevalence.filter", "ASV.count")
   rownames(dfp) <- seq(1:length(l.p))
