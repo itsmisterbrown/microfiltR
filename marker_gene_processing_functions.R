@@ -364,6 +364,7 @@ estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID
   }
   
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  ps.wso <- ps.ws
   
   #control sample filtering
   if(any(c(is.null(controlID), is.null(controlCAT), is.null(controlFACTOR)))){
@@ -413,7 +414,7 @@ estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID
   
   #CREATE ASV DF
   #reload ps.ws
-  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  ps.ws <- ps.wso
   #build df vectors
   ts <- taxa_sums(ps.ws)
   tsp <- taxa_sums(ps.ws)/sum(taxa_sums(ps.ws)) * 100
@@ -425,6 +426,8 @@ estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID
   phyloseq::otu_table(ps.ws) <- clr(phyloseq::otu_table(ps.ws))
   asv.tab <- format.ASV.tab(ps.ws)
   cv.asv <- apply(asv.tab[namevec,], MARGIN = 1, FUN = function(x) sd(x)/mean(x))
+  #reload ps.ws
+  ps.ws <- ps.wso
   tax.tab <- phyloseq::tax_table(ps.ws)[namevec,]
   
   #set prev vectors to null if no prev stats desired
