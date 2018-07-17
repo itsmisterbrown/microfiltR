@@ -164,6 +164,7 @@ getPrev <- function(ps, WSF=NULL, Prange, Pstep){
   return(l.return)
   
 }
+
 CVfilter <- function(ps, WSF=NULL, CVF){
   
   if(is.null(WSF)){
@@ -182,7 +183,11 @@ CVfilter <- function(ps, WSF=NULL, CVF){
   ps.wsm <- standardize.median(ps.ws)
   
   #perform filter
-  ps.ws <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) > CVF, TRUE)
+  ps.wsf <- phyloseq::filter_taxa(ps.wsm, function(x) sd(x)/mean(x) > CVF, TRUE)
+  #get taxa names to apply to original, unstandardized dataset
+  filtered.taxa.names <- phyloseq::taxa_names(ps.wsf)
+  #apply filter to unstandardized dataset
+  ps.ws <- phyloseq::prune_taxa(taxa = filtered.taxa.names, x = ps.ws)
   ps.ws
   
 }
