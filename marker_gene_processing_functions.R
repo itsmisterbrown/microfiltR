@@ -49,7 +49,7 @@ getCV <- function(ps, WSF=NULL, CVrange, CVstep){
       tryCatch({
         #loop through values and filter
         ps.wsm <- phyloseq::filter_taxa(ps.wsm, function(x) sd(x)/mean(x) > l.c[i], TRUE)
-        cvec[i] <- phyloseq::ntaxa(ps.ws)
+        cvec[i] <- phyloseq::ntaxa(ps.wsm)
         
       },
       error=function(e){cat("Warning :c",conditionMessage(e), "\n")})
