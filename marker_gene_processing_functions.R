@@ -418,6 +418,11 @@ estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID
   ts <- taxa_sums(ps.ws)
   tsp <- taxa_sums(ps.ws)/sum(taxa_sums(ps.ws)) * 100
   namevec <- names(ts)
+  #calculate CLR transformed CV values
+  #add pseudocount for clr
+  ps.ws <- phyloseq::transform_sample_counts(ps.ws, fun = function(x) x + 1)
+  #perform clr
+  phyloseq::otu_table(ps.ws) <- clr(phyloseq::otu_table(ps.ws))
   asv.tab <- format.ASV.tab(ps.ws)
   cv.asv <- apply(asv.tab[namevec,], MARGIN = 1, FUN = function(x) sd(x)/mean(x))
   tax.tab <- phyloseq::tax_table(ps.ws)[namevec,]
