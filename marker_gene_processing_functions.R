@@ -12,45 +12,13 @@ format.ASV.tab <- function(ps){
   asv.tab
 }
 
-#checking functions
-format.check <- function(x){
-  if (any(x==0)){
-    stop('Zeroes detected, please replace')
-  }
-  if (is.vector(x)){
-    m <- matrix(x, nrow = 1)
-    colnames(m) <- names(x)
-    m
-  } else {
-    x
-  }
-}
-
-plot.params <- function(df){
-  #melt the object
-  df.m <- long.format(df)
-  colnames(df.m) <- c("CV.prange", "CV.nrange", "ASVs")
-  #plot the results
-  p <- ggplot(df.m, aes(x = CV.prange, y = ASVs, color = CV.nrange)) + geom_line(size = 1.5) + 
-    labs(x="CLR transformed positive CV values", y="ASV count") + guides(color=guide_legend(title="CLR transformed \nnegative CV values"))
-  return(p)
-}
-
 
 #PROCESSING FUNCTIONS
-#clr
-clr <- function(x, p=NULL){
-  x <- format.check(x)
-  log(x/geomeans.r(df = x, p = p))
-}
-
-#geometric mean of rows, weighted or not
-geomeans.r <- function(df, p=NULL, na.rm=FALSE){
-  if (is.null(p)){
-    exp(rowMeans(log(df), na.rm=na.rm))
-  } else {
-    exp((rowSums(log(df) %*% diag(p)))/sum(p))
-  }
+#standardization 
+standardize.median <- function(ps){
+  median.rc <- median(phyloseq::sample_sums(ps))
+  ps.t <- phyloseq::transform_sample_counts(ps, fun = function(x) round(median.rc * (x/sum(x))))
+  ps.t
 }
 
 getCV <- function(ps, WSF=NULL, CVrange, CVstep){
@@ -66,42 +34,33 @@ getCV <- function(ps, WSF=NULL, CVrange, CVstep){
   }
   
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
-  #add pseudocount for clr
-  ps.ws <- phyloseq::transform_sample_counts(ps.ws, fun = function(x) x + 1)
-  #perform clr
-  phyloseq::otu_table(ps.ws) <- clr(phyloseq::otu_table(ps.ws))
+  #standardize to median sample depth
+  ps.wsm <- standardize.median(ps.ws)
   
   #build param vectors
   if(any(is.null(CVrange), is.null(CVstep))){
-    ctab <- NULL
+    dfc <- NULL
   } else {
-    low.c <- seq(from = -CVrange[1], to = -CVrange[2], by = -CVstep)
-    hi.c <- seq(from = CVrange[1], to = CVrange[2], by = CVstep)
+    l.c <- seq(from = CVrange[1], to = CVrange[2], by = CVstep)
+    nc <- length(l.c)
+    cvec <- c()
     
-    lnc <- length(low.c)
-    hnc <- length(hi.c)
-    
-    ctab <- array(numeric(lnc*hnc), dim=c(lnc, hnc))
-    
-    for (i in 1:hnc){
-      for (j in 1:lnc){
-        tryCatch({
-          #loop through values and filter
-          ps.ws.hi <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) > hi.c[i], TRUE)
-          nt.hi <- phyloseq::ntaxa(ps.ws.hi)
-          ps.ws.lo <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) < low.c[j], TRUE)
-          nt.lo <- phyloseq::ntaxa(ps.ws.lo)
-          ctab[j, i] <- nt.hi + nt.lo
-          
-        },
-        error=function(e){cat("Warning :c",conditionMessage(e), "\n")})
-      }
+    for (i in 1:nc){
+      tryCatch({
+        #loop through values and filter
+        ps.wsm <- phyloseq::filter_taxa(ps.wsm, function(x) sd(x)/mean(x) > l.c[i], TRUE)
+        cvec[i] <- phyloseq::ntaxa(ps.ws)
+        
+      },
+      error=function(e){cat("Warning :c",conditionMessage(e), "\n")})
     }
-    
+    #create df
+    dfc <- as.data.frame(cbind(l.c, cvec))
+    colnames(dfc) <- c("CV.filter", "ASV.count")
+    rownames(dfc) <- seq(1:length(l.c))
   }
-  colnames(ctab)[1:ncol(ctab)] <- paste(hi.c)
-  rownames(ctab)[1:nrow(ctab)] <- paste(low.c)
-  t(ctab)
+  
+  dfc
 }
 
 getRA <- function(ps, WSF=NULL, RAFrange, RAFstep){
@@ -218,28 +177,12 @@ CVfilter <- function(ps, WSF=NULL, CVF){
   }
   
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
-  #create checkpoint
-  ps.wso <- ps.ws
-  #add pseudocount for clr
-  ps.ws <- phyloseq::transform_sample_counts(ps.ws, fun = function(x) x + 1)
-  #perform clr
-  phyloseq::otu_table(ps.ws) <- clr(phyloseq::otu_table(ps.ws))
-  #create checkpoint
-  ps.wsc <- ps.ws
+
+  #standardize to median sample depth
+  ps.wsm <- standardize.median(ps.ws)
   
-  #perform pos filter
-  ps.ws <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) > CVF[2], TRUE)
-  #get filtered tax
-  pos.tax <- rownames(tax_table(ps.ws))
-  #reset ps
-  ps.ws <- ps.wsc
-  #perform neg filter
-  ps.ws <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) < CVF[1], TRUE)
-  #get filtered tax
-  neg.tax <- rownames(tax_table(ps.ws))
-  
-  #perform final filter                              
-  ps.ws <- phyloseq::prune_taxa(c(pos.tax, neg.tax), ps.wso)
+  #perform filter
+  ps.ws <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) > CVF, TRUE)
   ps.ws
   
 }
@@ -413,22 +356,15 @@ estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID
   }
   
   #CREATE ASV DF
-  #reload ps.ws
-  ps.ws <- ps.wso
   #build df vectors
-  ts <- taxa_sums(ps.ws)
-  tsp <- taxa_sums(ps.ws)/sum(taxa_sums(ps.ws)) * 100
+  ts <- taxa_sums(ps.wso)
+  tsp <- taxa_sums(ps.wso)/sum(taxa_sums(ps.wso)) * 100
   namevec <- names(ts)
-  #calculate CLR transformed CV values
-  #add pseudocount for clr
-  ps.ws <- phyloseq::transform_sample_counts(ps.ws, fun = function(x) x + 1)
-  #perform clr
-  phyloseq::otu_table(ps.ws) <- clr(phyloseq::otu_table(ps.ws))
+  #standardize to median sample depth for CV calculation
+  ps.ws <- standardize.median(ps.wso)
   asv.tab <- format.ASV.tab(ps.ws)
   cv.asv <- apply(asv.tab[namevec,], MARGIN = 1, FUN = function(x) sd(x)/mean(x))
-  #reload ps.ws
-  ps.ws <- ps.wso
-  tax.tab <- phyloseq::tax_table(ps.ws)[namevec,]
+  tax.tab <- phyloseq::tax_table(ps.wso)[namevec,]
   
   #set prev vectors to null if no prev stats desired
   if(any(is.null(Prange), is.null(Pstep))){
