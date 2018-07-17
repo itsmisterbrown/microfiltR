@@ -12,48 +12,99 @@ format.ASV.tab <- function(ps){
   asv.tab
 }
 
-#PROCESSING FUNCTIONS
-getCV <- function(ps, WSF=NULL, CVmin, CVmax, CVstep){
-  
-  if(is.null(WSF)){
-    message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
+#checking functions
+format.check <- function(x){
+  if (any(x==0)){
+    stop('Zeroes detected, please replace')
   }
-  
-  #perform WS filtering
-  filterfx = function(x){
-    x[(x / sum(x)) < WSF] <- 0
-    return(x)
-  }
-  
-  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
-  
-  #build param vectors
-  if(any(is.null(CVmin), is.null(CVmax), is.null(CVstep))){
-    dfc <- NULL
+  if (is.vector(x)){
+    m <- matrix(x, nrow = 1)
+    colnames(m) <- names(x)
+    m
   } else {
-    l.c <- seq(from = CVmin, to = CVmax, by = CVstep)
-    nc <- length(l.c)
-    cvec <- c()
-    
-    for (i in 1:nc){
-      tryCatch({
-        #loop through values and filter
-        ps.ws <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) > l.c[i], TRUE)
-        cvec[i] <- phyloseq::ntaxa(ps.ws)
-        
-      },
-      error=function(e){cat("Warning :c",conditionMessage(e), "\n")})
-    }
-    #create df
-    dfc <- as.data.frame(cbind(l.c, cvec))
-    colnames(dfc) <- c("CV.filter", "ASV.count")
-    rownames(dfc) <- seq(1:length(l.c))
+    x
   }
-  
-  dfc
 }
 
-getRA <- function(ps, WSF=NULL, RAFmin, RAFmax, RAFstep){
+plot.params <- function(df){
+  #melt the object
+  df.m <- long.format(df)
+  colnames(df.m) <- c("CV.prange", "CV.nrange", "ASVs")
+  #plot the results
+  p <- ggplot(df.m, aes(x = CV.prange, y = ASVs, color = CV.nrange)) + geom_line(size = 1.5) + 
+    labs(x="CLR transformed positive CV values", y="ASV count") + guides(color=guide_legend(title="CLR transformed \nnegative CV values"))
+  return(p)
+}
+
+
+#PROCESSING FUNCTIONS
+#clr
+clr <- function(x, p=NULL){
+  x <- format.check(x)
+  log(x/geomeans.r(df = x, p = p))
+}
+
+#geometric mean of rows, weighted or not
+geomeans.r <- function(df, p=NULL, na.rm=FALSE){
+  if (is.null(p)){
+    exp(rowMeans(log(df), na.rm=na.rm))
+  } else {
+    exp((rowSums(log(df) %*% diag(p)))/sum(p))
+  }
+}
+
+getCV <- function(ps, WSF=NULL, CVrange, CVstep){
+  
+  if(is.null(WSF)){
+    message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
+  }
+  
+  #perform WS filtering
+  filterfx = function(x){
+    x[(x / sum(x)) < WSF] <- 0
+    return(x)
+  }
+  
+  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  #add pseudocount for clr
+  ps.ws <- phyloseq::transform_sample_counts(ps.ws, fun = function(x) x + 1)
+  #perform clr
+  phyloseq::otu_table(ps.ws) <- clr(phyloseq::otu_table(ps.ws))
+  
+  #build param vectors
+  if(any(is.null(CVrange), is.null(CVstep))){
+    ctab <- NULL
+  } else {
+    low.c <- seq(from = -CVrange[1], to = -CVrange[2], by = -CVstep)
+    hi.c <- seq(from = CVrange[1], to = CVrange[2], by = CVstep)
+    
+    lnc <- length(low.c)
+    hnc <- length(hi.c)
+    
+    ctab <- array(numeric(lnc*hnc), dim=c(lnc, hnc))
+    
+    for (i in 1:hnc){
+      for (j in 1:lnc){
+        tryCatch({
+          #loop through values and filter
+          ps.ws.hi <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) > hi.c[i], TRUE)
+          nt.hi <- phyloseq::ntaxa(ps.ws.hi)
+          ps.ws.lo <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) < low.c[j], TRUE)
+          nt.lo <- phyloseq::ntaxa(ps.ws.lo)
+          ctab[j, i] <- nt.hi + nt.lo
+          
+        },
+        error=function(e){cat("Warning :c",conditionMessage(e), "\n")})
+      }
+    }
+    
+  }
+  colnames(ctab)[1:ncol(ctab)] <- paste(hi.c)
+  rownames(ctab)[1:nrow(ctab)] <- paste(low.c)
+  t(ctab)
+}
+
+getRA <- function(ps, WSF=NULL, RAFrange, RAFstep){
   
   if(is.null(WSF)){
     message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
@@ -68,10 +119,10 @@ getRA <- function(ps, WSF=NULL, RAFmin, RAFmax, RAFstep){
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   
   #build param vectors
-  if(any(is.null(RAFmin), is.null(RAFmax), is.null(RAFstep))){
+  if(any(is.null(RAFrange), is.null(RAFstep))){
     dfr <- NULL
   } else {
-    l.r <- seq(from = RAFmin, to = RAFmax, by = RAFstep)
+    l.r <- seq(from = RAFrange[1], to = RAFrange[2], by = RAFstep)
     nr <- length(l.r)
     rvec <- c()
     
@@ -94,7 +145,7 @@ getRA <- function(ps, WSF=NULL, RAFmin, RAFmax, RAFstep){
   dfr
 }
 
-getPrev <- function(ps, WSF=NULL, Pmin, Pmax, Pstep){
+getPrev <- function(ps, WSF=NULL, Prange, Pstep){
   
   if(is.null(WSF)){
     message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
@@ -111,7 +162,7 @@ getPrev <- function(ps, WSF=NULL, Pmin, Pmax, Pstep){
   asv.tab <- format.ASV.tab(ps.ws)
   
   #build param vectors
-  l.p <- seq(from = Pmin, to = Pmax, by = Pstep)
+  l.p <- seq(from = Prange[1], to = Prange[2], by = Pstep)
   np <- length(l.p)
   pvec <- c()
   taxa.cvec <- c()
@@ -154,7 +205,6 @@ getPrev <- function(ps, WSF=NULL, Pmin, Pmax, Pstep){
   return(l.return)
   
 }
-
 CVfilter <- function(ps, WSF=NULL, CVF){
   
   if(is.null(WSF)){
@@ -168,12 +218,32 @@ CVfilter <- function(ps, WSF=NULL, CVF){
   }
   
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  #create checkpoint
+  ps.wso <- ps.ws
+  #add pseudocount for clr
+  ps.ws <- phyloseq::transform_sample_counts(ps.ws, fun = function(x) x + 1)
+  #perform clr
+  phyloseq::otu_table(ps.ws) <- clr(phyloseq::otu_table(ps.ws))
+  #create checkpoint
+  ps.wsc <- ps.ws
   
-  #perform filter
-  ps.ws <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) > CVF, TRUE)
+  #perform pos filter
+  ps.ws <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) > CVF[2], TRUE)
+  #get filtered tax
+  pos.tax <- rownames(tax_table(ps.ws))
+  #reset ps
+  ps.ws <- ps.wsc
+  #perform neg filter
+  ps.ws <- phyloseq::filter_taxa(ps.ws, function(x) sd(x)/mean(x) < CVF[1], TRUE)
+  #get filtered tax
+  neg.tax <- rownames(tax_table(ps.ws))
+  
+  #perform final filter                              
+  ps.ws <- phyloseq::prune_taxa(c(pos.tax, neg.tax), ps.wso)
   ps.ws
   
 }
+
 
 
 RAfilter<- function(ps, WSF=NULL, RAF){
@@ -233,10 +303,10 @@ Pfilter <- function(ps, WSF=NULL, PF){
 }
 
 #WRAPPER FUNCTIONS
-estimate.WSthreshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, controlID) {
+estimate.WSthreshold <- function(ps, WSrange, WSstep, controlID) {
   
   #Build param lists
-  l.t <- seq(from = WSmin, to = WSmax, by = WSstep)
+  l.t <- seq(from = WSrange[1], to = WSrange[2], by = WSstep)
   nt <- length(l.t)
   tvec <- c()
   svec <- c()
@@ -273,9 +343,8 @@ estimate.WSthreshold <- function(ps, WSmin=1e-4, WSmax=2e-4, WSstep=1e-5, contro
   
 }
 
-estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, minLIB=NULL, Pmin=NULL, 
-                                 Pmax=NULL, Pstep=NULL, CVmin=NULL, 
-                                 CVmax=NULL, CVstep=NULL, RAFmin=NULL, RAFmax=NULL, RAFstep=NULL){
+estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL,
+                                 minLIB=NULL, Prange=NULL, Pstep=NULL, CVrange=NULL, CVstep=NULL, RAFrange=NULL, RAFstep=NULL){
   
   if(is.null(WSF)){
     message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
@@ -310,10 +379,10 @@ estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID
   
   #RELATIVE ABUNDANCE
   #build param lists
-  if(any(is.null(RAFmin), is.null(RAFmax), is.null(RAFstep))){
+  if(any(is.null(RAFrange), is.null(RAFstep))){
     gr <- NULL
   } else {
-    gr <- getRA(ps = ps.ws, WSF = WSF, RAFmin = RAFmin, RAFmax = RAFmax, RAFstep = RAFstep)
+    gr <- getRA(ps = ps.ws, WSF = WSF, RAFrange = RAFrange, RAFstep = RAFstep)
   }
   
   #incorporate fixed threshold
@@ -323,10 +392,10 @@ estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID
   
   #CV
   #build param lists
-  if(any(is.null(CVmin), is.null(CVmax), is.null(CVstep))){
+  if(any(is.null(CVrange), is.null(CVstep))){
     gc <- NULL
   } else {
-    gc <- getCV(ps = ps.ws, WSF = WSF, CVmin = CVmin, CVmax = CVmax, CVstep = CVstep)
+    gc <- getCV(ps = ps.ws, WSF = WSF, CVrange = CVrange, CVstep = CVstep)
   }
   
   #incorporate fixed threshold
@@ -336,10 +405,10 @@ estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID
   
   #PREVALENCE
   #Build param lists
-  if(any(is.null(Pmin), is.null(Pmax), is.null(Pstep))){
+  if(any(is.null(Prange), is.null(Pstep))){
     gp$prevalence.filtering.stats <- NULL
   } else {
-    gp <- getPrev(ps = ps.ws, WSF = WSF, Pmin = Pmin, Pmax = Pmax, Pstep = Pstep)
+    gp <- getPrev(ps = ps.ws, WSF = WSF, Prange = Prange, Pstep = Pstep)
   }
   
   #CREATE ASV DF
@@ -354,11 +423,11 @@ estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID
   tax.tab <- phyloseq::tax_table(ps.ws)[namevec,]
   
   #set prev vectors to null if no prev stats desired
-  if(any(is.null(Pmin), is.null(Pmax), is.null(Pstep))){
+  if(any(is.null(Prange), is.null(Pstep))){
     prev <- rep(NA, length(ts))
     prevp <- rep(NA, length(ts))
   } else {
-    gp.reload <- getPrev(ps = ps.ws, WSF = WSF, Pmin = Pmin, Pmax = Pmax, Pstep = Pstep)
+    gp.reload <- getPrev(ps = ps.ws, WSF = WSF, Prange = Prange, Pstep = Pstep)
     taxa.cvec <- gp.reload$ASV.prevalence.count
     prev <- taxa.cvec[namevec]
     prevp <- prev/phyloseq::nsamples(ps.ws) * 100
