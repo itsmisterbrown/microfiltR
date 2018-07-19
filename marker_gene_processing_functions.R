@@ -12,6 +12,15 @@ format.ASV.tab <- function(ps){
   asv.tab
 }
 
+format.parameter.string <- function(string){
+  string <- gsub(pattern = "c(|)", replacement = "", x = string)
+  string[2] <- gsub(pattern = ":", replacement = ", ", x = string[2])
+  string <- strsplit(string, split = ", ")
+  string <- as.numeric(paste0(c(string[[2]], string[[3]])))
+  string
+}
+
+
 
 #PROCESSING FUNCTIONS
 #standardization 
@@ -257,10 +266,19 @@ Pfilter <- function(ps, WSF=NULL, PF){
 }
 
 #WRAPPER FUNCTIONS
-estimate.WSthreshold <- function(ps, WSrange, WSstep, controlID) {
+estimate.WSthreshold <- function(ps, WST, controlID) {
+  
+  #throw error if controlID doesn't match
+  if(!(controlID %in% phyloseq::sample_names(ps))){
+    stop("controlID provided is not a valid sample name")
+  }
+  
+  #convert param string to numeric vector
+  string.s <- substitute(WST)
+  WST <- eval(expr = format.parameter.string(string = string.s), envir = parent.frame())
   
   #Build param lists
-  l.t <- seq(from = WSrange[1], to = WSrange[2], by = WSstep)
+  l.t <- seq(from = WST[1], to = WST[2], by = WST[3])
   nt <- length(l.t)
   tvec <- c()
   svec <- c()
@@ -296,6 +314,7 @@ estimate.WSthreshold <- function(ps, WSrange, WSstep, controlID) {
   df
   
 }
+
 
 estimate.ASthreshold <- function(ps, WSF, RAF=NULL, CVF=NULL, PF=NULL, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL,
                                  minLIB=NULL, Prange=NULL, Pstep=NULL, CVrange=NULL, CVstep=NULL, RAFrange=NULL, RAFstep=NULL){
