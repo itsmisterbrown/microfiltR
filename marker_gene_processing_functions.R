@@ -321,18 +321,13 @@ estimate.WSthreshold <- function(ps, WSrange, controlID) {
   
 }
 
-estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL,
+estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdCAT=NULL, mdFACTOR=NULL,
                                  minLIB=NULL, Prange=NULL, CVrange=NULL, RArange=NULL){
   #message if no WST
   if(is.null(WST)){
     message('Not applying WS filter')
   } else {
     message('Applying WS filter threshold of ', WST)
-  }
-  
-  #throw error if controlID doesn't match
-  if(all(!is.null(controlID), !(controlID %in% phyloseq::sample_names(ps)))){
-    stop("controlID provided is not a valid sample name")
   }
   
   #throw error if mdCAT doesn't match
@@ -357,11 +352,11 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, con
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   ps.wso <- ps.ws
   
-  if(all(c(!is.null(mdCAT), !is.null(mdFACTOR)))){
-    #control sample filtering
-    #create sampledf
+  #remove sample by metadata filters
+  if (any(c(is.null(mdCAT), is.null(mdFACTOR)))){
+    message('Not removing samples based on metadata identifiers')
+  } else {
     sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
-    #remove controls
     filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] != mdFACTOR),])
     sampledf.s <- as.data.frame(sampledf[filtered.names,])
     phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
@@ -394,7 +389,8 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, con
     #convert param string to numeric vector
     string.r <- substitute(RArange)
     RAF <- eval(expr = format.parameter.string(string = string.r), envir = parent.frame())
-    gr <- getRA(ps = ps.ws, WST = NULL, RArange = RAF)
+    message('Estimating filtering statistics from relative abundance thresholds ', RAF[1], ' to ', RAF[2], ' by ', RAF[3])
+    gr <- suppressMessages(getRA(ps = ps.ws, WST = NULL, RArange = RAF))
     
   }
   
@@ -405,7 +401,8 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, con
   } else {
     string.c <- substitute(CVrange)
     CVF <- eval(expr = format.parameter.string(string = string.c), envir = parent.frame())
-    gc <- getCV(ps = ps.ws, WST = NULL, CVrange = CVF)
+    message('Estimating filtering statistics from CV thresholds ', CVF[1], ' to ', CVF[2], ' by ', CVF[3])
+    gc <- suppressMessages(getCV(ps = ps.ws, WST = NULL, CVrange = CVF))
   }
   
   #PREVALENCE
@@ -415,7 +412,8 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, con
   } else {
     string.p <- substitute(Prange)
     PF <- eval(expr = format.parameter.string(string = string.p), envir = parent.frame())
-    gp <- getPrev(ps = ps.ws, WST = NULL, Prange = PF)
+    message('Estimating filtering statistics from prevalence thresholds ', PF[1], ' to ', PF[2], ' by ', PF[3])
+    gp <- suppressMessages(getPrev(ps = ps.ws, WST = NULL, Prange = PF))
   }
   
   #CREATE ASV DF
@@ -540,8 +538,8 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, minLIB
     raf <- NULL
   } else {
     message('Applying relative abundance threshold of ', RAT)
-    ps.ws <- RAfilter(ps = ps.ws, WST = NULL, RAF = RAT)
-    raf <- RAF * sum(phyloseq::taxa_sums(ps.ws))
+    ps.ws <- suppressMessages(RAfilter(ps = ps.ws, WST = NULL, RAF = RAT))
+    raf <- RAT * sum(phyloseq::taxa_sums(ps.ws))
   }
   
   #CV filter
@@ -549,7 +547,7 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, minLIB
     ps.ws <- ps.ws
   } else {
     message('Applying CV threshold of ', CVT)
-    ps.ws <- CVfilter(ps = ps.ws, WST = NULL, CVF = CVT)
+    ps.ws <- suppressMessages(CVfilter(ps = ps.ws, WST = NULL, CVF = CVT))
   }
   
   #prevalence filter
@@ -558,7 +556,7 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, minLIB
     prev.count <- NULL
   } else {
     message('Applying prevalence threshold of ', PFT)
-    ps.ws <- Pfilter(ps = ps.ws, WST = NULL, PF = PFT)
+    ps.ws <- suppressMessages(Pfilter(ps = ps.ws, WST = NULL, PF = PFT))
     prev.count <- phyloseq::nsamples(ps.ws) * PFT
   }
   #create AS filter sample sum vector
