@@ -220,15 +220,15 @@ getPrev <- function(ps, WST=NULL, Prange){
   
 }
 
-CVfilter <- function(ps, WSF=NULL, CVF){
+CVfilter <- function(ps, WST=NULL, CVF){
   
-  if(is.null(WSF)){
+  if(is.null(WST)){
     message('Warning: WS filtering is highly recommended to reduce cross contamination')
   }
   
   #perform WS filtering
   filterfx = function(x){
-    x[(x / sum(x)) < WSF] <- 0
+    x[(x / sum(x)) < WST] <- 0
     return(x)
   }
   
@@ -249,15 +249,15 @@ CVfilter <- function(ps, WSF=NULL, CVF){
 
 
 
-RAfilter<- function(ps, WSF=NULL, RAF){
+RAfilter<- function(ps, WST=NULL, RAF){
   
-  if(is.null(WSF)){
+  if(is.null(WST)){
     message('Warning: WS filtering is highly recommended to reduce cross contamination')
   }
   
   #perform WS filtering
   filterfx = function(x){
-    x[(x / sum(x)) < WSF] <- 0
+    x[(x / sum(x)) < WST] <- 0
     return(x)
   }
   
@@ -270,15 +270,15 @@ RAfilter<- function(ps, WSF=NULL, RAF){
   
 }
 
-Pfilter <- function(ps, WSF=NULL, PF){
+Pfilter <- function(ps, WST=NULL, PF){
   
-  if(is.null(WSF)){
+  if(is.null(WST)){
     message('Warning: WS filtering is highly recommended to reduce cross contamination')
   }
   
   #perform WS filtering
   filterfx = function(x){
-    x[(x / sum(x)) < WSF] <- 0
+    x[(x / sum(x)) < WST] <- 0
     return(x)
   }
   
@@ -315,17 +315,19 @@ estimate.WSthreshold <- function(ps, WSrange, controlID) {
   
   #convert param string to numeric vector
   string.w <- substitute(WSrange)
-  WSF <- eval(expr = format.parameter.string(string = string.w), envir = parent.frame())
-  gws <- getWS(ps = ps, WSrange = WSF, controlID = controlID)
+  WST <- eval(expr = format.parameter.string(string = string.w), envir = parent.frame())
+  gws <- getWS(ps = ps, WSrange = WST, controlID = controlID)
   gws
   
 }
 
-estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL,
+estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL,
                                  minLIB=NULL, Prange=NULL, CVrange=NULL, RArange=NULL){
   #message if no WST
   if(is.null(WST)){
-    message('Warning: Estimation of AS filters will not be accurate without first applying WS filter')
+    message('Not applying WS filter')
+  } else {
+    message('Applying WS filter threshold of ', WST)
   }
   
   #throw error if controlID doesn't match
@@ -333,11 +335,17 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, con
     stop("controlID provided is not a valid sample name")
   }
   
+  #throw error if mdCAT doesn't match
+  if(all(!is.null(mdCAT), !(mdCAT %in% colnames(phyloseq::sample_data(ps))))){
+    stop("mdCAT provided is not a valid metadata category")
+  }
+  
   #remove samples < minlib
   if(is.null(minLIB)){
     ps = ps
   } else {
     ps = phyloseq::prune_samples(phyloseq::sample_sums(ps)>=minLIB, ps)
+    message('Removing samples with read count < ', minLIB)
   }
   
   #perform WS filtering
@@ -349,16 +357,35 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, con
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   ps.wso <- ps.ws
   
-  if(all(c(!is.null(controlCAT), !is.null(controlFACTOR)))){
-  #control sample filtering
+  if(all(c(!is.null(mdCAT), !is.null(mdFACTOR)))){
+    #control sample filtering
     #create sampledf
     sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
     #remove controls
-    filtered.names <- rownames(sampledf[which(sampledf[,match(controlCAT, colnames(sampledf))] != controlFACTOR),])
+    filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] != mdFACTOR),])
     sampledf.s <- as.data.frame(sampledf[filtered.names,])
     phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
+    message('Removing ',  (phyloseq::nsamples(ps) - phyloseq::nsamples(ps.ws)), ' samples matching metadata identifiers ', mdCAT, ":", mdFACTOR)
   }
   
+  #INCORPORATE FIXED THRESHOLDS
+  #RELATIVE ABUNDANCE
+  if(!is.null(RAT)){
+    ps.ws <- suppressMessages(RAfilter(ps = ps.ws, WST = NULL, RAF = RAT))
+    message('Applying fixed relative abundance threshold of ', RAT)
+  }
+  #CV
+  if(!is.null(CVT)){
+    ps.ws <- suppressMessages(CVfilter(ps = ps.ws, WST = NULL, CVF = CVT))
+    message('Applying fixed CV threshold of ', CVT)
+  }
+  #PREVALENCE
+  if(!is.null(PFT)){
+    ps.ws <- suppressMessages(Pfilter(ps = ps.ws, WST = NULL, PF = PFT))
+    message('Applying fixed prevalence threshold of ', PFT)
+  }
+  
+  #ESTIMATION
   #RELATIVE ABUNDANCE
   #build param lists
   if(is.null(RArange)){
@@ -367,13 +394,8 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, con
     #convert param string to numeric vector
     string.r <- substitute(RArange)
     RAF <- eval(expr = format.parameter.string(string = string.r), envir = parent.frame())
-    gr <- getRA(ps = ps.ws, WST = WST, RArange = RAF)
+    gr <- getRA(ps = ps.ws, WST = NULL, RArange = RAF)
     
-  }
-  
-  #incorporate fixed threshold
-  if(!is.null(RAT)){
-    ps.ws <- RAfilter(ps = ps.ws, WST = WST, RAT = RAT)
   }
   
   #CV
@@ -383,12 +405,7 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, con
   } else {
     string.c <- substitute(CVrange)
     CVF <- eval(expr = format.parameter.string(string = string.c), envir = parent.frame())
-    gc <- getCV(ps = ps.ws, WST = WST, CVrange = CVF)
-  }
-  
-  #incorporate fixed threshold
-  if(!is.null(CVT)){
-    ps.ws <- CVfilter(ps = ps.ws, WST = WST, CVT = CVT)
+    gc <- getCV(ps = ps.ws, WST = NULL, CVrange = CVF)
   }
   
   #PREVALENCE
@@ -398,7 +415,7 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, con
   } else {
     string.p <- substitute(Prange)
     PF <- eval(expr = format.parameter.string(string = string.p), envir = parent.frame())
-    gp <- getPrev(ps = ps.ws, WST = WST, Prange = PF)
+    gp <- getPrev(ps = ps.ws, WST = NULL, Prange = PF)
   }
   
   #CREATE ASV DF
@@ -413,11 +430,16 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, con
   tax.tab <- phyloseq::tax_table(ps.wso)[namevec,]
   
   #set prev vectors to null if no prev stats desired
-  if(is.null(Prange)){
-    prev <- rep(NA, length(ts))
-    prevp <- rep(NA, length(ts))
-  } else {
-    gp.reload <- getPrev(ps = ps.ws, WST = WST, Prange = PF)
+  if (all(c(is.null(Prange), !is.null(PFT)))){
+    gp.reload <- suppressMessages(getPrev(ps = ps.ws, WST = NULL, Prange = c(0.10,0.11,0.01)))
+    taxa.cvec <- gp.reload$ASV.prevalence.count
+    prev <- taxa.cvec[namevec]
+    prevp <- prev/phyloseq::nsamples(ps.ws) * 100
+    } else if (all(c(is.null(Prange), is.null(PFT)))){
+      prev <- rep(NA, length(ts))
+      prevp <- rep(NA, length(ts))
+      } else {
+    gp.reload <- suppressMessages(getPrev(ps = ps.ws, WST = NULL, Prange = PF))
     taxa.cvec <- gp.reload$ASV.prevalence.count
     prev <- taxa.cvec[namevec]
     prevp <- prev/phyloseq::nsamples(ps.ws) * 100
@@ -438,26 +460,37 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, con
   return(l.return)
 }
 
-
-filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NULL, minLIB=NULL, WSF=NULL, RAF=NULL, CVF=NULL, PF=NULL, return.all=TRUE){
+filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, minLIB=NULL, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, return.all=TRUE){
+  
+  #throw error if controlID doesn't match
+  if(all(!is.null(controlID), !(controlID %in% phyloseq::sample_names(ps)))){
+    stop("controlID provided is not a valid sample name")
+  }
+  
+  #throw error if mdCAT doesn't match
+  if(all(!is.null(mdCAT), !(mdCAT %in% colnames(phyloseq::sample_data(ps))))){
+    stop("mdCAT provided is not a valid metadata category")
+  }
   
   #remove samples < minlib
   if(is.null(minLIB)){
     ps = ps
   } else {
     ps = phyloseq::prune_samples(phyloseq::sample_sums(ps)>=minLIB, ps)
+    message('Removing samples with read count < ', minLIB)
   }
   
   #create unfiltered sample sum vector
   ov <- phyloseq::sample_sums(ps)
   
   #WS filtering
-  if(is.null(WSF)){
-    message('Warning: WS filtering is highly recommended to reduce cross contamination')
+  if(is.null(WST)){
+    message('Not applying WS filter')
     ps.ws <- ps
   } else {
+    message('Applying WS filter threshold of ', WST)
     filterfx = function(x){
-      x[(x / sum(x)) < WSF] <- 0
+      x[(x / sum(x)) < WST] <- 0
       return(x)
     }
     
@@ -473,52 +506,60 @@ filter.dataset <- function(ps, controlID=NULL, controlCAT=NULL, controlFACTOR=NU
   asv.tab <- format.ASV.tab(ps.ws)
   
   #CONTROL (METADATA-BASED) SAMPLE REMOVAL
-  if(any(c(is.null(controlID), is.null(controlCAT), is.null(controlFACTOR)))){
+  if(is.null(controlID)){
     npos <- NULL
     tax.tab.subset <- NULL
     ttsn <- NULL
   } else {
-    #control taxa count
+    #calculate control taxa count
     npos <- nrow(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
     
-    #taxonomy of taxa in positive control
+    #get taxonomy of taxa in positive control
     tax.tab <- phyloseq::tax_table(ps.ws)
     taxanames.control <- rownames(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
     tax.tab.subset <- tax.tab[taxanames.control] #taxonomy of taxa in positive control
     ttsn <- tax.tab.subset
     rownames(ttsn) <- NULL
+  }
     
-    #remove controls
+    #remove sample by metadata filters
+    if (any(c(is.null(mdCAT), is.null(mdFACTOR)))){
+      message('Not removing samples based on metadata identifiers')
+    } else {
     sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
-    filtered.names <- rownames(sampledf[which(sampledf[,match(controlCAT, colnames(sampledf))] != controlFACTOR),])
+    filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] != mdFACTOR),])
     sampledf.s <- as.data.frame(sampledf[filtered.names,])
     phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
+    message('Removing ',  (phyloseq::nsamples(ps) - phyloseq::nsamples(ps.ws)), ' samples matching metadata identifiers ', mdCAT, ":", mdFACTOR)
   }
   
   #AS filtering
   #relative abundance filter
-  if(is.null(RAF)){
+  if(is.null(RAT)){
     ps.ws <- ps.ws
     raf <- NULL
   } else {
-    ps.ws <- RAfilter(ps = ps.ws, WSF = WSF, RAF = RAF)
+    message('Applying relative abundance threshold of ', RAT)
+    ps.ws <- RAfilter(ps = ps.ws, WST = NULL, RAF = RAT)
     raf <- RAF * sum(phyloseq::taxa_sums(ps.ws))
   }
   
   #CV filter
-  if(is.null(CVF)){
+  if(is.null(CVT)){
     ps.ws <- ps.ws
   } else {
-    ps.ws <- CVfilter(ps = ps.ws, WSF = WSF, CVF = CVF)
+    message('Applying CV threshold of ', CVT)
+    ps.ws <- CVfilter(ps = ps.ws, WST = NULL, CVF = CVT)
   }
   
   #prevalence filter
-  if(is.null(PF)){
+  if(is.null(PFT)){
     ps.ws <- ps.ws
     prev.count <- NULL
   } else {
-    ps.ws <- Pfilter(ps = ps.ws, WSF = WSF, PF = PF)
-    prev.count <- phyloseq::nsamples(ps.ws) * PF
+    message('Applying prevalence threshold of ', PFT)
+    ps.ws <- Pfilter(ps = ps.ws, WST = NULL, PF = PFT)
+    prev.count <- phyloseq::nsamples(ps.ws) * PFT
   }
   #create AS filter sample sum vector
   pfv <- phyloseq::sample_sums(ps.ws)
