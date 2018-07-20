@@ -316,6 +316,7 @@ estimate.WSthreshold <- function(ps, WSrange, controlID) {
   #convert param string to numeric vector
   string.w <- substitute(WSrange)
   WST <- eval(expr = format.parameter.string(string = string.w), envir = parent.frame())
+  message('Estimating filtering statistics from WS thresholds ', WST[1], ' to ', WST[2], ' by ', WST[3])
   gws <- getWS(ps = ps, WSrange = WST, controlID = controlID)
   gws
   
