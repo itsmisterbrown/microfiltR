@@ -324,12 +324,6 @@ estimate.WSthreshold <- function(ps, WSrange, controlID) {
 
 estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdCAT=NULL, mdFACTOR=NULL,
                                  minLIB=NULL, Prange=NULL, CVrange=NULL, RArange=NULL){
-  #message if no WST
-  if(is.null(WST)){
-    message('Not applying WS filter')
-  } else {
-    message('Applying WS filter threshold of ', WST)
-  }
   
   #throw error if mdCAT doesn't match
   if(all(!is.null(mdCAT), !(mdCAT %in% colnames(phyloseq::sample_data(ps))))){
@@ -344,13 +338,22 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdC
     message('Removing samples with read count < ', minLIB)
   }
   
-  #perform WS filtering
-  filterfx = function(x){
-    x[(x / sum(x)) < WST] <- 0
-    return(x)
+  #WS filtering
+  if(is.null(WST)){
+    message('Not applying WS filter')
+    ps.ws <- ps
+  } else {
+    message('Applying WS filter threshold of ', WST)
+    filterfx = function(x){
+      x[(x / sum(x)) < WST] <- 0
+      return(x)
+    }
+    
+    #create WS filtered object
+    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   }
   
-  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  #save WS filtered object for reversion later
   ps.wso <- ps.ws
   
   #remove sample by metadata filters
@@ -458,6 +461,7 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdC
   
   return(l.return)
 }
+
 
 filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, minLIB=NULL, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, return.all=TRUE){
   
