@@ -691,5 +691,3 @@ write.dataset <- function(ps, filepath, fileprefix){
   #return phyloseq object with taxa renamed to ASV1, etc.
   return(ps)
 }
-
-
