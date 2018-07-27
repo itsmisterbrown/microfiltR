@@ -498,7 +498,6 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGA
   
   #WS filtering
   if(is.null(WST)){
-    message('Not applying WS filter')
     ps.ws <- ps
   } else {
     message('Applying WS filter threshold of ', WST)
@@ -609,6 +608,7 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGA
   
   return(l.return)
 }
+
 
 write.dataset.biom <- function(ps, filepath, fileprefix){
   
