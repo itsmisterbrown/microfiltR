@@ -82,9 +82,9 @@ getCV <- function(ps, WST=NULL, CVrange){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  }
   
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  }
   #standardize to median sample depth
   ps.wsm <- standardize.median(ps.ws)
   
@@ -128,9 +128,9 @@ getRA <- function(ps, WST=NULL, RArange){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  }
   
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  }
   
   #build param vectors
   if(is.null(RArange)){
@@ -173,9 +173,9 @@ getPrev <- function(ps, WST=NULL, Prange){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  }
   
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  }
   
   asv.tab <- format.ASV.tab(ps.ws)
   
@@ -238,9 +238,9 @@ CVfilter <- function(ps, WST=NULL, CVF){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  }
   
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  }
   
   #standardize to median sample depth
   ps.wsm <- standardize.median(ps.ws)
@@ -269,9 +269,9 @@ RAfilter<- function(ps, WST=NULL, RAF){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  }
   
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  }
   
   #perform filter
   raf <- sum(phyloseq::taxa_sums(ps.ws)) * RAF
@@ -292,9 +292,9 @@ Pfilter <- function(ps, WST=NULL, PF){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  }
   
   ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  }
   
   #format asv table
   asv.tab <- format.ASV.tab(ps.ws)
@@ -360,124 +360,124 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdC
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
+    
+    
+    #create WS filtered object
+    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   }
   
-  #create WS filtered object
-  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
-}
-
-#save WS filtered object for reversion later
-ps.wso <- ps.ws
-
-#remove sample by metadata filters
-if (any(c(is.null(mdCAT), is.null(mdFACTOR)))){
-  message('Not removing samples based on metadata identifiers')
-} else {
-  sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
-  if (isTRUE(mdNEGATIVE)){
-    filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] == mdFACTOR),])
-    message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples not matching metadata identifiers ', mdCAT, ":", mdFACTOR)
-  } else {
-    filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] != mdFACTOR),])
-    message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples matching metadata identifiers ', mdCAT, ":", mdFACTOR)
-  } 
-  sampledf.s <- as.data.frame(sampledf[filtered.names,])
-  phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
-}
-
-#INCORPORATE FIXED THRESHOLDS
-#RELATIVE ABUNDANCE
-if(!is.null(RAT)){
-  ps.ws <- suppressMessages(RAfilter(ps = ps.ws, WST = NULL, RAF = RAT))
-  message('Applying fixed relative abundance threshold of ', RAT)
-}
-#CV
-if(!is.null(CVT)){
-  ps.ws <- suppressMessages(CVfilter(ps = ps.ws, WST = NULL, CVF = CVT))
-  message('Applying fixed CV threshold of ', CVT)
-}
-#PREVALENCE
-if(!is.null(PFT)){
-  ps.ws <- suppressMessages(Pfilter(ps = ps.ws, WST = NULL, PF = PFT))
-  message('Applying fixed prevalence threshold of ', PFT)
-}
-
-#ESTIMATION
-#RELATIVE ABUNDANCE
-#build param lists
-if(is.null(RArange)){
-  gr <- NULL
-} else {
-  #convert param string to numeric vector
-  string.r <- substitute(RArange)
-  RAF <- eval(expr = format.parameter.string(string = string.r), envir = parent.frame())
-  message('Estimating filtering statistics from relative abundance thresholds ', RAF[1], ' to ', RAF[2], ' by ', RAF[3])
-  gr <- suppressMessages(getRA(ps = ps.ws, WST = NULL, RArange = RAF))
+  #save WS filtered object for reversion later
+  ps.wso <- ps.ws
   
-}
-
-#CV
-#build param lists
-if(is.null(CVrange)){
-  gc <- NULL
-} else {
-  string.c <- substitute(CVrange)
-  CVF <- eval(expr = format.parameter.string(string = string.c), envir = parent.frame())
-  message('Estimating filtering statistics from CV thresholds ', CVF[1], ' to ', CVF[2], ' by ', CVF[3])
-  gc <- suppressMessages(getCV(ps = ps.ws, WST = NULL, CVrange = CVF))
-}
-
-#PREVALENCE
-#Build param lists
-if(is.null(Prange)){
-  gp <- NULL
-} else {
-  string.p <- substitute(Prange)
-  PF <- eval(expr = format.parameter.string(string = string.p), envir = parent.frame())
-  message('Estimating filtering statistics from prevalence thresholds ', PF[1], ' to ', PF[2], ' by ', PF[3])
-  gp <- suppressMessages(getPrev(ps = ps.ws, WST = NULL, Prange = PF))
-}
-
-#CREATE ASV DF
-#build df vectors
-ts <- taxa_sums(ps.wso)
-tsp <- taxa_sums(ps.wso)/sum(taxa_sums(ps.wso)) * 100
-namevec <- names(ts)
-#standardize to median sample depth for CV calculation
-ps.ws <- standardize.median(ps.wso)
-asv.tab <- format.ASV.tab(ps.ws)
-cv.asv <- apply(asv.tab[namevec,], MARGIN = 1, FUN = function(x) sd(x)/mean(x))
-tax.tab <- phyloseq::tax_table(ps.wso)[namevec,]
-
-#set prev vectors to null if no prev stats desired
-if (all(c(is.null(Prange), !is.null(PFT)))){
-  gp.reload <- suppressMessages(getPrev(ps = ps.ws, WST = NULL, Prange = c(0.10,0.11,0.01)))
-  taxa.cvec <- gp.reload$ASV.prevalence.count
-  prev <- taxa.cvec[namevec]
-  prevp <- prev/phyloseq::nsamples(ps.ws) * 100
-} else if (all(c(is.null(Prange), is.null(PFT)))){
-  prev <- rep(NA, length(ts))
-  prevp <- rep(NA, length(ts))
-} else {
-  gp.reload <- suppressMessages(getPrev(ps = ps.ws, WST = NULL, Prange = PF))
-  taxa.cvec <- gp.reload$ASV.prevalence.count
-  prev <- taxa.cvec[namevec]
-  prevp <- prev/phyloseq::nsamples(ps.ws) * 100
-}
-
-#build df and rename
-df.asv <- cbind.data.frame(ts, tsp, prev, prevp, cv.asv, tax.tab)
-colnames(df.asv)[1:5] <- c("ASV.read.count", "ASV.read.percent", "ASV.prevalence", "ASV.prevalence.percent", "ASV.CV")
-rownames(df.asv) <- seq(1:nrow(df.asv))
-
-# Build return list
-l.return = list()
-l.return[['relative.abundance.filtering.stats']] <- gr
-l.return[['CV.filtering.stats']] <- gc
-l.return[['prevalence.filtering.stats']] <- gp$prevalence.filtering.stats
-l.return[['ASV.filtering.stats']] <- df.asv
-
-return(l.return)
+  #remove sample by metadata filters
+  if (any(c(is.null(mdCAT), is.null(mdFACTOR)))){
+    message('Not removing samples based on metadata identifiers')
+  } else {
+    sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
+    if (isTRUE(mdNEGATIVE)){
+      filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] == mdFACTOR),])
+      message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples not matching metadata identifiers ', mdCAT, ":", mdFACTOR)
+    } else {
+      filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] != mdFACTOR),])
+      message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples matching metadata identifiers ', mdCAT, ":", mdFACTOR)
+    } 
+    sampledf.s <- as.data.frame(sampledf[filtered.names,])
+    phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
+  }
+  
+  #INCORPORATE FIXED THRESHOLDS
+  #RELATIVE ABUNDANCE
+  if(!is.null(RAT)){
+    ps.ws <- suppressMessages(RAfilter(ps = ps.ws, WST = NULL, RAF = RAT))
+    message('Applying fixed relative abundance threshold of ', RAT)
+  }
+  #CV
+  if(!is.null(CVT)){
+    ps.ws <- suppressMessages(CVfilter(ps = ps.ws, WST = NULL, CVF = CVT))
+    message('Applying fixed CV threshold of ', CVT)
+  }
+  #PREVALENCE
+  if(!is.null(PFT)){
+    ps.ws <- suppressMessages(Pfilter(ps = ps.ws, WST = NULL, PF = PFT))
+    message('Applying fixed prevalence threshold of ', PFT)
+  }
+  
+  #ESTIMATION
+  #RELATIVE ABUNDANCE
+  #build param lists
+  if(is.null(RArange)){
+    gr <- NULL
+  } else {
+    #convert param string to numeric vector
+    string.r <- substitute(RArange)
+    RAF <- eval(expr = format.parameter.string(string = string.r), envir = parent.frame())
+    message('Estimating filtering statistics from relative abundance thresholds ', RAF[1], ' to ', RAF[2], ' by ', RAF[3])
+    gr <- suppressMessages(getRA(ps = ps.ws, WST = NULL, RArange = RAF))
+    
+  }
+  
+  #CV
+  #build param lists
+  if(is.null(CVrange)){
+    gc <- NULL
+  } else {
+    string.c <- substitute(CVrange)
+    CVF <- eval(expr = format.parameter.string(string = string.c), envir = parent.frame())
+    message('Estimating filtering statistics from CV thresholds ', CVF[1], ' to ', CVF[2], ' by ', CVF[3])
+    gc <- suppressMessages(getCV(ps = ps.ws, WST = NULL, CVrange = CVF))
+  }
+  
+  #PREVALENCE
+  #Build param lists
+  if(is.null(Prange)){
+    gp <- NULL
+  } else {
+    string.p <- substitute(Prange)
+    PF <- eval(expr = format.parameter.string(string = string.p), envir = parent.frame())
+    message('Estimating filtering statistics from prevalence thresholds ', PF[1], ' to ', PF[2], ' by ', PF[3])
+    gp <- suppressMessages(getPrev(ps = ps.ws, WST = NULL, Prange = PF))
+  }
+  
+  #CREATE ASV DF
+  #build df vectors
+  ts <- taxa_sums(ps.wso)
+  tsp <- taxa_sums(ps.wso)/sum(taxa_sums(ps.wso)) * 100
+  namevec <- names(ts)
+  #standardize to median sample depth for CV calculation
+  ps.ws <- standardize.median(ps.wso)
+  asv.tab <- format.ASV.tab(ps.ws)
+  cv.asv <- apply(asv.tab[namevec,], MARGIN = 1, FUN = function(x) sd(x)/mean(x))
+  tax.tab <- phyloseq::tax_table(ps.wso)[namevec,]
+  
+  #set prev vectors to null if no prev stats desired
+  if (all(c(is.null(Prange), !is.null(PFT)))){
+    gp.reload <- suppressMessages(getPrev(ps = ps.ws, WST = NULL, Prange = c(0.10,0.11,0.01)))
+    taxa.cvec <- gp.reload$ASV.prevalence.count
+    prev <- taxa.cvec[namevec]
+    prevp <- prev/phyloseq::nsamples(ps.ws) * 100
+  } else if (all(c(is.null(Prange), is.null(PFT)))){
+    prev <- rep(NA, length(ts))
+    prevp <- rep(NA, length(ts))
+  } else {
+    gp.reload <- suppressMessages(getPrev(ps = ps.ws, WST = NULL, Prange = PF))
+    taxa.cvec <- gp.reload$ASV.prevalence.count
+    prev <- taxa.cvec[namevec]
+    prevp <- prev/phyloseq::nsamples(ps.ws) * 100
+  }
+  
+  #build df and rename
+  df.asv <- cbind.data.frame(ts, tsp, prev, prevp, cv.asv, tax.tab)
+  colnames(df.asv)[1:5] <- c("ASV.read.count", "ASV.read.percent", "ASV.prevalence", "ASV.prevalence.percent", "ASV.CV")
+  rownames(df.asv) <- seq(1:nrow(df.asv))
+  
+  # Build return list
+  l.return = list()
+  l.return[['relative.abundance.filtering.stats']] <- gr
+  l.return[['CV.filtering.stats']] <- gc
+  l.return[['prevalence.filtering.stats']] <- gp$prevalence.filtering.stats
+  l.return[['ASV.filtering.stats']] <- df.asv
+  
+  return(l.return)
 }
 
 filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGATIVE=FALSE, minLIB=NULL, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, return.all=TRUE){
@@ -512,109 +512,109 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGA
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
+    
+    
+    #create WS filtered object
+    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   }
   
-  #create WS filtered object
-  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
-}
-
-#create WS filtered sample sum vector
-ifv <- phyloseq::sample_sums(ps.ws)
-#calculate percent filtered, individual
-p.if <- phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)*100
-
-asv.tab <- format.ASV.tab(ps.ws)
-
-#CONTROL (METADATA-BASED) SAMPLE REMOVAL
-if(is.null(controlID)){
-  npos <- NULL
-  tax.tab.subset <- NULL
-  ttsn <- NULL
-} else {
-  #calculate control taxa count
-  npos <- nrow(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
+  #create WS filtered sample sum vector
+  ifv <- phyloseq::sample_sums(ps.ws)
+  #calculate percent filtered, individual
+  p.if <- phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)*100
   
-  #get taxonomy of taxa in positive control
-  tax.tab <- phyloseq::tax_table(ps.ws)
-  taxanames.control <- rownames(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
-  tax.tab.subset <- tax.tab[taxanames.control] #taxonomy of taxa in positive control
-  ttsn <- tax.tab.subset
-  rownames(ttsn) <- NULL
-}
-
-#remove sample by metadata filters
-if (any(c(is.null(mdCAT), is.null(mdFACTOR)))){
-  message('Not removing samples based on metadata identifiers')
-} else {
-  sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
-  if (isTRUE(mdNEGATIVE)){
-    filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] == mdFACTOR),])
-    message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples not matching metadata identifiers ', mdCAT, ":", mdFACTOR)
+  asv.tab <- format.ASV.tab(ps.ws)
+  
+  #CONTROL (METADATA-BASED) SAMPLE REMOVAL
+  if(is.null(controlID)){
+    npos <- NULL
+    tax.tab.subset <- NULL
+    ttsn <- NULL
   } else {
-    filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] != mdFACTOR),])
-    message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples matching metadata identifiers ', mdCAT, ":", mdFACTOR)
-  }    
-  sampledf.s <- as.data.frame(sampledf[filtered.names,])
-  phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
-}
-
-#AS filtering
-#relative abundance filter
-if(is.null(RAT)){
-  ps.ws <- ps.ws
-  raf <- NULL
-} else {
-  message('Applying relative abundance threshold of ', RAT)
-  ps.ws <- suppressMessages(RAfilter(ps = ps.ws, WST = NULL, RAF = RAT))
-  raf <- RAT * sum(phyloseq::taxa_sums(ps.ws))
-}
-
-#CV filter
-if(is.null(CVT)){
-  ps.ws <- ps.ws
-} else {
-  message('Applying CV threshold of ', CVT)
-  ps.ws <- suppressMessages(CVfilter(ps = ps.ws, WST = NULL, CVF = CVT))
-}
-
-#prevalence filter
-if(is.null(PFT)){
-  ps.ws <- ps.ws
-  prev.count <- NULL
-} else {
-  message('Applying prevalence threshold of ', PFT)
-  ps.ws <- suppressMessages(Pfilter(ps = ps.ws, WST = NULL, PF = PFT))
-  prev.count <- phyloseq::nsamples(ps.ws) * PFT
-}
-#create AS filter sample sum vector
-pfv <- phyloseq::sample_sums(ps.ws)
-#calculate percent filtered, AS
-p.pf <- suppressWarnings(phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)[names(phyloseq::sample_sums(ps.ws))]*100)
-
-#order vectors
-pfv <- pfv[names(p.if)]
-p.pf <- p.pf[names(p.if)]
-
-#cbind vectors into df
-sstab <- cbind(ov, ifv, p.if, pfv, p.pf)
-colnames(sstab) <- c("unfiltered.read.count", "WSfiltered.read.count", "WSfiltered.read.percent", "ASfiltered.read.count", "ASfiltered.read.percent")
-
-# Build return list
-l.return = list()
-if (return.all==FALSE){
-  return(ps.ws)
-} else {
-  l.return[['filtered.phyloseq']] <- ps.ws
-  l.return[['ntaxa.in.control']] <- npos
-  l.return[['control.taxa.sequences']] <- rownames(tax.tab.subset)
-  l.return[['taxonomy.of.control.taxa']] <- ttsn
-  l.return[['read.count.table']] <- sstab
-  l.return[['relative.abundance.filter.read.count']] <- raf
-  l.return[['prevalence.filter.sample.count']] <- prev.count
+    #calculate control taxa count
+    npos <- nrow(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
+    
+    #get taxonomy of taxa in positive control
+    tax.tab <- phyloseq::tax_table(ps.ws)
+    taxanames.control <- rownames(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
+    tax.tab.subset <- tax.tab[taxanames.control] #taxonomy of taxa in positive control
+    ttsn <- tax.tab.subset
+    rownames(ttsn) <- NULL
+  }
   
-}
-
-return(l.return)
+  #remove sample by metadata filters
+  if (any(c(is.null(mdCAT), is.null(mdFACTOR)))){
+    message('Not removing samples based on metadata identifiers')
+  } else {
+    sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
+    if (isTRUE(mdNEGATIVE)){
+      filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] == mdFACTOR),])
+      message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples not matching metadata identifiers ', mdCAT, ":", mdFACTOR)
+    } else {
+      filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] != mdFACTOR),])
+      message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples matching metadata identifiers ', mdCAT, ":", mdFACTOR)
+    }    
+    sampledf.s <- as.data.frame(sampledf[filtered.names,])
+    phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
+  }
+  
+  #AS filtering
+  #relative abundance filter
+  if(is.null(RAT)){
+    ps.ws <- ps.ws
+    raf <- NULL
+  } else {
+    message('Applying relative abundance threshold of ', RAT)
+    ps.ws <- suppressMessages(RAfilter(ps = ps.ws, WST = NULL, RAF = RAT))
+    raf <- RAT * sum(phyloseq::taxa_sums(ps.ws))
+  }
+  
+  #CV filter
+  if(is.null(CVT)){
+    ps.ws <- ps.ws
+  } else {
+    message('Applying CV threshold of ', CVT)
+    ps.ws <- suppressMessages(CVfilter(ps = ps.ws, WST = NULL, CVF = CVT))
+  }
+  
+  #prevalence filter
+  if(is.null(PFT)){
+    ps.ws <- ps.ws
+    prev.count <- NULL
+  } else {
+    message('Applying prevalence threshold of ', PFT)
+    ps.ws <- suppressMessages(Pfilter(ps = ps.ws, WST = NULL, PF = PFT))
+    prev.count <- phyloseq::nsamples(ps.ws) * PFT
+  }
+  #create AS filter sample sum vector
+  pfv <- phyloseq::sample_sums(ps.ws)
+  #calculate percent filtered, AS
+  p.pf <- suppressWarnings(phyloseq::sample_sums(ps.ws)/phyloseq::sample_sums(ps)[names(phyloseq::sample_sums(ps.ws))]*100)
+  
+  #order vectors
+  pfv <- pfv[names(p.if)]
+  p.pf <- p.pf[names(p.if)]
+  
+  #cbind vectors into df
+  sstab <- cbind(ov, ifv, p.if, pfv, p.pf)
+  colnames(sstab) <- c("unfiltered.read.count", "WSfiltered.read.count", "WSfiltered.read.percent", "ASfiltered.read.count", "ASfiltered.read.percent")
+  
+  # Build return list
+  l.return = list()
+  if (return.all==FALSE){
+    return(ps.ws)
+  } else {
+    l.return[['filtered.phyloseq']] <- ps.ws
+    l.return[['ntaxa.in.control']] <- npos
+    l.return[['control.taxa.sequences']] <- rownames(tax.tab.subset)
+    l.return[['taxonomy.of.control.taxa']] <- ttsn
+    l.return[['read.count.table']] <- sstab
+    l.return[['relative.abundance.filter.read.count']] <- raf
+    l.return[['prevalence.filter.sample.count']] <- prev.count
+    
+  }
+  
+  return(l.return)
 }
 
 
