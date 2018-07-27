@@ -82,8 +82,8 @@ getCV <- function(ps, WST=NULL, CVrange){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  
-  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    
+    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   }
   #standardize to median sample depth
   ps.wsm <- standardize.median(ps.ws)
@@ -128,8 +128,8 @@ getRA <- function(ps, WST=NULL, RArange){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  
-  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    
+    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   }
   
   #build param vectors
@@ -173,8 +173,8 @@ getPrev <- function(ps, WST=NULL, Prange){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  
-  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    
+    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   }
   
   asv.tab <- format.ASV.tab(ps.ws)
@@ -238,8 +238,8 @@ CVfilter <- function(ps, WST=NULL, CVF){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  
-  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    
+    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   }
   
   #standardize to median sample depth
@@ -269,8 +269,8 @@ RAfilter<- function(ps, WST=NULL, RAF){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  
-  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    
+    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   }
   
   #perform filter
@@ -292,8 +292,8 @@ Pfilter <- function(ps, WST=NULL, PF){
       x[(x / sum(x)) < WST] <- 0
       return(x)
     }
-  
-  ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    
+    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
   }
   
   #format asv table
