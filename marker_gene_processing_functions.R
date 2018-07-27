@@ -346,8 +346,9 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdC
   if(is.null(minLIB)){
     ps = ps
   } else {
+    pml.c <- nrow(phyloseq::sample_data(ps))
     ps = phyloseq::prune_samples(phyloseq::sample_sums(ps)>=minLIB, ps)
-    message('Removing samples with read count < ', minLIB)
+    message('Removing ',(pml.c -  phyloseq::nsamples(ps)), ' samples with read count < ', minLIB)
   }
   
   #WS filtering
@@ -496,8 +497,9 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGA
   if(is.null(minLIB)){
     ps = ps
   } else {
+    pml.c <- nrow(phyloseq::sample_data(ps))
     ps = phyloseq::prune_samples(phyloseq::sample_sums(ps)>=minLIB, ps)
-    message('Removing samples with read count < ', minLIB)
+    message('Removing ',(pml.c -  phyloseq::nsamples(ps)), ' samples with read count < ', minLIB)
   }
   
   #create unfiltered sample sum vector
