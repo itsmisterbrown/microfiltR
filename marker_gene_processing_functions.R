@@ -31,7 +31,7 @@ standardize.median <- function(ps){
 }
 
 #parameter estimation
-getWS <- function(ps, WSrange, controlID){
+getWS <- function(ps, WSrange, controlID, controlFASTA=NULL){
   
   #Build param lists
   l.t <- seq(from = WSrange[1], to = WSrange[2], by = WSrange[3])
@@ -39,6 +39,14 @@ getWS <- function(ps, WSrange, controlID){
   tvec <- c()
   svec <- c()
   pvec <- c()
+  
+  #build files for sequence matching if specified
+  if (!is.null(controlFASTA)){
+    nvec <- list()
+    mvec <- c()
+    cfasta <- ShortRead::readFasta(controlFASTA)
+  }
+
   
   for (i in 1:nt){
     tryCatch({
@@ -52,10 +60,14 @@ getWS <- function(ps, WSrange, controlID){
       asv.tab <- format.ASV.tab(ps.ws)
       
       #FILTERING
-      
       tvec[i] <- nrow(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
       svec[i] <- sum(phyloseq::sample_sums(ps.ws))
       pvec[i] <- sum(phyloseq::sample_sums(ps.ws))/sum(phyloseq::sample_sums(ps))*100
+      
+      if (!is.null(controlFASTA)){
+        nvec[[i]] <- rownames(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
+        mvec[i] <- sum(sapply(nvec[[i]], function(x) any(grepl(x, as.character(ShortRead::sread(cfasta))))))
+      }
       
     },
     error=function(e){cat("Warning :",conditionMessage(e), "\n")})
@@ -63,9 +75,14 @@ getWS <- function(ps, WSrange, controlID){
   names(tvec) <- c(l.t)
   names(svec) <- c(l.t)
   names(pvec) <- c(l.t)
+  if (!is.null(controlFASTA)){
+  names(mvec) <- c(l.t)
+  } else {
+    mvec <- rep(NA, length(tvec))
+  }
   
-  df <- as.data.frame(cbind(tvec, svec, pvec, as.numeric(paste0(names(tvec)))))
-  colnames(df) <- c("control.taxa.count", "read.count", "read.percent", "threshold.value")
+  df <- as.data.frame(cbind(tvec, mvec, svec, pvec, as.numeric(paste0(names(tvec)))))
+  colnames(df) <- c("control.taxa.count", "control.taxa.matches", "read.count", "read.percent", "threshold.value")
   rownames(df) <- seq(1:length(l.t))
   df
 }
@@ -318,7 +335,7 @@ Pfilter <- function(ps, WST=NULL, PF){
 }
 
 #WRAPPER FUNCTIONS
-estimate.WSthreshold <- function(ps, WSrange, controlID) {
+estimate.WSthreshold <- function(ps, WSrange, controlID, controlFASTA=NULL) {
   
   #throw error if controlID doesn't match
   if(!(controlID %in% phyloseq::sample_names(ps))){
@@ -329,10 +346,11 @@ estimate.WSthreshold <- function(ps, WSrange, controlID) {
   string.w <- substitute(WSrange)
   WST <- eval(expr = format.parameter.string(string = string.w), envir = parent.frame())
   message('Estimating filtering statistics from WS thresholds ', WST[1], ' to ', WST[2], ' by ', WST[3])
-  gws <- getWS(ps = ps, WSrange = WST, controlID = controlID)
+  gws <- getWS(ps = ps, WSrange = WST, controlID = controlID, controlFASTA = controlFASTA)
   gws
   
 }
+
 
 estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGATIVE=FALSE,
                                  minLIB=NULL, Prange=NULL, CVrange=NULL, RArange=NULL){
