@@ -564,7 +564,6 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGA
   
   #remove sample by metadata filters
   if (any(c(is.null(mdCAT), is.null(mdFACTOR)))){
-    message('Not removing samples based on metadata identifiers')
   } else {
     sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
     if (isTRUE(mdNEGATIVE)){
