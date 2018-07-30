@@ -46,7 +46,7 @@ getWS <- function(ps, WSrange, controlID, controlFASTA=NULL){
     mvec <- c()
     cfasta <- ShortRead::readFasta(controlFASTA)
   }
-
+  
   
   for (i in 1:nt){
     tryCatch({
@@ -76,7 +76,7 @@ getWS <- function(ps, WSrange, controlID, controlFASTA=NULL){
   names(svec) <- c(l.t)
   names(pvec) <- c(l.t)
   if (!is.null(controlFASTA)){
-  names(mvec) <- c(l.t)
+    names(mvec) <- c(l.t)
   } else {
     mvec <- rep(NA, length(tvec))
   }
@@ -263,15 +263,14 @@ CVfilter <- function(ps, WST=NULL, CVF){
   ps.wsm <- standardize.median(ps.ws)
   
   #perform filter
-  ps.wsf <- phyloseq::filter_taxa(ps.wsm, function(x) sd(x)/mean(x) > CVF, TRUE)
+  ps.wsm <- phyloseq::filter_taxa(ps.wsm, function(x) sd(x)/mean(x) > CVF, TRUE)
   #get taxa names to apply to original, unstandardized dataset
-  filtered.taxa.names <- phyloseq::taxa_names(ps.wsf)
+  filtered.taxa.names <- phyloseq::taxa_names(ps.wsm)
   #apply filter to unstandardized dataset
   ps.ws <- phyloseq::prune_taxa(taxa = filtered.taxa.names, x = ps.ws)
   ps.ws
   
 }
-
 
 
 RAfilter<- function(ps, WST=NULL, RAF){
@@ -388,7 +387,7 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdC
   #save WS filtered object for reversion later
   ps.wso <- ps.ws
   
-  #remove sample by metadata filters
+  #METADATA BASED SAMPLE FILTERING
   if (any(c(is.null(mdCAT), is.null(mdFACTOR)))){
     message('Not removing samples based on metadata identifiers')
   } else {
@@ -485,8 +484,9 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdC
   }
   
   #build df and rename
-  df.asv <- cbind.data.frame(ts, tsp, prev, prevp, cv.asv, tax.tab)
+  df.asv <- cbind.data.frame(ts, tsp, prev, prevp, cv.asv, tax.tab, rownames(tax.tab))
   colnames(df.asv)[1:5] <- c("ASV.read.count", "ASV.read.percent", "ASV.prevalence", "ASV.prevalence.percent", "ASV.CV")
+  colnames(df.asv)[ncol(df.asv)] <- "ASV.ID"
   rownames(df.asv) <- seq(1:nrow(df.asv))
   
   # Build return list
@@ -499,7 +499,7 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdC
   return(l.return)
 }
 
-filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGATIVE=FALSE, minLIB=NULL, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, return.all=TRUE){
+filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGATIVE=FALSE, minLIB=NULL, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, return.all=FALSE){
   
   #throw error if controlID doesn't match
   if(all(!is.null(controlID), !(controlID %in% phyloseq::sample_names(ps)))){
@@ -545,7 +545,7 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGA
   
   asv.tab <- format.ASV.tab(ps.ws)
   
-  #CONTROL (METADATA-BASED) SAMPLE REMOVAL
+  #METADATA-BASED SAMPLE REMOVAL
   if(is.null(controlID)){
     npos <- NULL
     tax.tab.subset <- NULL
@@ -637,12 +637,16 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGA
 }
 
 
-write.dataset.biom <- function(ps, filepath, fileprefix){
+write.dataset.biom <- function(ps, filepath, fileprefix, rename=FALSE){
   
   #save ASV sequences to vector and rename for fasta format
   f.onames <- phyloseq::taxa_names(ps)
-  phyloseq::taxa_names(ps) <- paste("ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
-  names(f.onames) <- paste0(">", phyloseq::taxa_names(ps))
+  if (isTRUE(rename)){
+    phyloseq::taxa_names(ps) <- paste("ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
+    names(f.onames) <- paste0(">", phyloseq::taxa_names(ps))
+  } else {
+    names(f.onames) <- paste(">ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
+  }
   
   #generate biom file
   suppressWarnings(ps.b <- biomformat::make_biom(
@@ -665,12 +669,16 @@ write.dataset.biom <- function(ps, filepath, fileprefix){
   return(ps)
 }
 
-write.dataset <- function(ps, filepath, fileprefix){
+write.dataset <- function(ps, filepath, fileprefix, rename=FALSE){
   
   #save ASV sequences to vector and rename for fasta format
   f.onames <- phyloseq::taxa_names(ps)
-  phyloseq::taxa_names(ps) <- paste("ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
-  names(f.onames) <- paste0(">", phyloseq::taxa_names(ps))
+  if (isTRUE(rename)){
+    phyloseq::taxa_names(ps) <- paste("ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
+    names(f.onames) <- paste0(">", phyloseq::taxa_names(ps))
+  } else {
+    names(f.onames) <- paste(">ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
+  }
   
   #generate asv table formatted for biom generation
   asv.tab <- format.ASV.tab(ps)
@@ -718,6 +726,5 @@ write.dataset <- function(ps, filepath, fileprefix){
   #return phyloseq object with taxa renamed to ASV1, etc.
   return(ps)
 }
-
 
 
