@@ -51,7 +51,7 @@ getWS <- function(ps, WSrange, controlID, controlFASTA=NULL){
   for (i in 1:nt){
     tryCatch({
       #loop through values
-      ps.ws <- WSfilter(ps = ps, WST = l.t[i])
+      ps.ws <- suppressMessages(WSfilter(ps = ps, WST = l.t[i]))
       asv.tab <- format.ASV.tab(ps.ws)
       
       #FILTERING
@@ -252,8 +252,6 @@ MDfilter <- function(ps, mdFACTOR, mdCAT, mdNEGATIVE=FALSE){
   phyloseq::sample_data(ps) <- phyloseq::sample_data(sampledf.s)
   ps
 }
-
-
 
 CVfilter <- function(ps, WST=NULL, CVF){
   
