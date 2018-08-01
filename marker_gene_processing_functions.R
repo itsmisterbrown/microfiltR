@@ -51,12 +51,7 @@ getWS <- function(ps, WSrange, controlID, controlFASTA=NULL){
   for (i in 1:nt){
     tryCatch({
       #loop through values
-      filterfx = function(x){
-        x[(x / sum(x)) < (l.t[i])] <- 0
-        return(x)
-      }
-      
-      ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+      ps.ws <- WSfilter(ps = ps, WST = l.t[i])
       asv.tab <- format.ASV.tab(ps.ws)
       
       #FILTERING
@@ -94,13 +89,7 @@ getCV <- function(ps, WST=NULL, CVrange){
     message('Not applying WS filter')
     ps.ws <- ps
   } else {
-    message('Applying WS filter threshold of ', WST)
-    filterfx = function(x){
-      x[(x / sum(x)) < WST] <- 0
-      return(x)
-    }
-    
-    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    ps.ws <- WSfilter(ps = ps, WST = WST)
   }
   #standardize to median sample depth
   ps.wsm <- standardize.median(ps.ws)
@@ -140,13 +129,7 @@ getRA <- function(ps, WST=NULL, RArange){
     message('Not applying WS filter')
     ps.ws <- ps
   } else {
-    message('Applying WS filter threshold of ', WST)
-    filterfx = function(x){
-      x[(x / sum(x)) < WST] <- 0
-      return(x)
-    }
-    
-    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    ps.ws <- WSfilter(ps = ps, WST = WST)
   }
   
   #build param vectors
@@ -185,13 +168,7 @@ getPrev <- function(ps, WST=NULL, Prange){
     message('Not applying WS filter')
     ps.ws <- ps
   } else {
-    message('Applying WS filter threshold of ', WST)
-    filterfx = function(x){
-      x[(x / sum(x)) < WST] <- 0
-      return(x)
-    }
-    
-    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    ps.ws <- WSfilter(ps = ps, WST = WST)
   }
   
   asv.tab <- format.ASV.tab(ps.ws)
@@ -243,6 +220,41 @@ getPrev <- function(ps, WST=NULL, Prange){
   
 }
 
+#filtering scripts
+WSfilter <- function(ps, WST){
+  
+  #perform filter
+  message('Applying WS filter threshold of ', WST)
+  
+  filterfx = function(x){
+    x[(x / sum(x)) < WST] <- 0
+    return(x)
+    }
+  
+  ps <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  ps
+}
+
+MDfilter <- function(ps, mdFACTOR, mdCAT, mdNEGATIVE=FALSE){
+  #create sample df for subsetting
+  sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps)))
+  
+  if (isTRUE(mdNEGATIVE)){
+    filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] == mdFACTOR),])
+    message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples not matching metadata identifiers ', mdCAT, ":", mdFACTOR)
+  } else {
+    filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] != mdFACTOR),])
+    message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples matching metadata identifiers ', mdCAT, ":", mdFACTOR)
+  }    
+  
+  #subset sampledf to include nonfiltered samples only
+  sampledf.s <- as.data.frame(sampledf[filtered.names,])
+  phyloseq::sample_data(ps) <- phyloseq::sample_data(sampledf.s)
+  ps
+}
+
+
+
 CVfilter <- function(ps, WST=NULL, CVF){
   
   #WS filtering
@@ -250,13 +262,7 @@ CVfilter <- function(ps, WST=NULL, CVF){
     message('Not applying WS filter')
     ps.ws <- ps
   } else {
-    message('Applying WS filter threshold of ', WST)
-    filterfx = function(x){
-      x[(x / sum(x)) < WST] <- 0
-      return(x)
-    }
-    
-    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    ps.ws <- WSfilter(ps = ps, WST = WST)
   }
   
   #standardize to median sample depth
@@ -280,13 +286,7 @@ RAfilter<- function(ps, WST=NULL, RAF){
     message('Not applying WS filter')
     ps.ws <- ps
   } else {
-    message('Applying WS filter threshold of ', WST)
-    filterfx = function(x){
-      x[(x / sum(x)) < WST] <- 0
-      return(x)
-    }
-    
-    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    ps.ws <- WSfilter(ps = ps, WST = WST)
   }
   
   #perform filter
@@ -303,13 +303,7 @@ Pfilter <- function(ps, WST=NULL, PF){
     message('Not applying WS filter')
     ps.ws <- ps
   } else {
-    message('Applying WS filter threshold of ', WST)
-    filterfx = function(x){
-      x[(x / sum(x)) < WST] <- 0
-      return(x)
-    }
-    
-    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+    ps.ws <- WSfilter(ps = ps, WST = WST)
   }
   
   #format asv table
@@ -369,19 +363,10 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdC
   }
   
   #WS filtering
-  if(is.null(WST)){
-    message('Not applying WS filter')
-    ps.ws <- ps
+  if (is.null(WST)){
+  ps.ws <- ps
   } else {
-    message('Applying WS filter threshold of ', WST)
-    filterfx = function(x){
-      x[(x / sum(x)) < WST] <- 0
-      return(x)
-    }
-    
-    
-    #create WS filtered object
-    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  ps.ws <- WSfilter(ps = ps, WST = WST)
   }
   
   #save WS filtered object for reversion later
@@ -389,18 +374,9 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdC
   
   #METADATA BASED SAMPLE FILTERING
   if (any(c(is.null(mdCAT), is.null(mdFACTOR)))){
-    message('Not removing samples based on metadata identifiers')
+    ps.ws <- ps.ws
   } else {
-    sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
-    if (isTRUE(mdNEGATIVE)){
-      filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] == mdFACTOR),])
-      message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples not matching metadata identifiers ', mdCAT, ":", mdFACTOR)
-    } else {
-      filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] != mdFACTOR),])
-      message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples matching metadata identifiers ', mdCAT, ":", mdFACTOR)
-    } 
-    sampledf.s <- as.data.frame(sampledf[filtered.names,])
-    phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
+    ps.ws <- MDfilter(ps = ps.ws, mdFACTOR = mdFACTOR, mdCAT = mdCAT, mdNEGATIVE = mdNEGATIVE)
   }
   
   #INCORPORATE FIXED THRESHOLDS
@@ -524,18 +500,10 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGA
   ov <- phyloseq::sample_sums(ps)
   
   #WS filtering
-  if(is.null(WST)){
-    ps.ws <- ps
+  if (is.null(WST)){
+  ps.ws <- ps
   } else {
-    message('Applying WS filter threshold of ', WST)
-    filterfx = function(x){
-      x[(x / sum(x)) < WST] <- 0
-      return(x)
-    }
-    
-    
-    #create WS filtered object
-    ps.ws <- phyloseq::transform_sample_counts(ps, fun = filterfx)
+  ps.ws <- WSfilter(ps = ps, WST = WST)
   }
   
   #create WS filtered sample sum vector
@@ -562,19 +530,11 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGA
     rownames(ttsn) <- NULL
   }
   
-  #remove sample by metadata filters
+  #remove samples by metadata filters
   if (any(c(is.null(mdCAT), is.null(mdFACTOR)))){
+    ps.ws <- ps.ws
   } else {
-    sampledf <- suppressWarnings(as.matrix(phyloseq::sample_data(ps.ws)))
-    if (isTRUE(mdNEGATIVE)){
-      filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] == mdFACTOR),])
-      message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples not matching metadata identifiers ', mdCAT, ":", mdFACTOR)
-    } else {
-      filtered.names <- rownames(sampledf[which(sampledf[,match(mdCAT, colnames(sampledf))] != mdFACTOR),])
-      message('Removing ',  (phyloseq::nsamples(ps) - length(filtered.names)), ' samples matching metadata identifiers ', mdCAT, ":", mdFACTOR)
-    }    
-    sampledf.s <- as.data.frame(sampledf[filtered.names,])
-    phyloseq::sample_data(ps.ws) <- phyloseq::sample_data(sampledf.s)
+    ps.ws <- MDfilter(ps = ps.ws, mdFACTOR = mdFACTOR, mdCAT = mdCAT, mdNEGATIVE = mdNEGATIVE)
   }
   
   #AS filtering
@@ -605,6 +565,7 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGA
     ps.ws <- suppressMessages(Pfilter(ps = ps.ws, WST = NULL, PF = PFT))
     prev.count <- phyloseq::nsamples(ps.ws) * PFT
   }
+  
   #create AS filter sample sum vector
   pfv <- phyloseq::sample_sums(ps.ws)
   #calculate percent filtered, AS
@@ -635,7 +596,6 @@ filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGA
   
   return(l.return)
 }
-
 
 write.dataset.biom <- function(ps, filepath, fileprefix, rename=FALSE){
   
