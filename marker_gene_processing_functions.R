@@ -76,8 +76,8 @@ getWS <- function(ps, WSrange, controlID, controlFASTA=NULL){
     mvec <- rep(NA, length(tvec))
   }
   
-  df <- as.data.frame(cbind(tvec, mvec, svec, pvec, as.numeric(paste0(names(tvec)))))
-  colnames(df) <- c("control.taxa.count", "control.taxa.matches", "read.count", "read.percent", "threshold.value")
+  df <- as.data.frame(cbind(as.numeric(paste0(names(tvec))), tvec, mvec, svec, pvec))
+  colnames(df) <- c("threshold.value", "control.taxa.count", "control.taxa.matches", "read.count", "read.percent")
   rownames(df) <- seq(1:length(l.t))
   df
 }
