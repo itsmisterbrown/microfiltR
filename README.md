@@ -1,4 +1,4 @@
-# marker gene filtering and processing functions
+# microfiltR: marker gene processing, filtering and exporting functions
 accessory functions for processing microbial community data
 
 
