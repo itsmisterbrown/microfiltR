@@ -20,7 +20,84 @@ format.parameter.string <- function(string){
   string
 }
 
+format.long <- function(df){
+  ctc <- rep(colnames(df)[2], nrow(df))
+  ctm <- rep(colnames(df)[3], nrow(df))
+  tvv <- rep(df[,1], 2)
+  th <- c(df[,2], df[, 3])
+  
+  df2 <- cbind.data.frame(c(ctc, ctm), tvv, th)
+  colnames(df2) <- c("cgroup", "threshold.value", "taxa.hits")
+  df2
+}
 
+#PLOTTING FUNCTIONS
+plot.threshold <- function(est.obj){
+  ggplot2::theme_set(theme_bw())
+  #plot either WS or AS figs
+  if (is.data.frame(est.obj)){
+    df <- format.long(est.obj)
+    
+    plot1 <- ggplot2::ggplot(data = df, aes(x=threshold.value, y=taxa.hits, color=cgroup)) + 
+      ggplot2::geom_line(size=2, alpha=0.7) + ggplot2::scale_color_manual(values = c("orange", "steelblue2"), labels = c("Control taxa count", "Control taxa matches")) +
+      ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
+            axis.text.x = element_text(size = 10, colour = "black", angle = 315, vjust = 0.7),
+            axis.title.x = element_text(size = 15, colour = "black"),
+            axis.title.y = element_text(size = 0),
+            legend.title = element_text(size = 0),
+            legend.position = "top")
+    
+    plot2 <- ggplot2::ggplot(data = est.obj, aes(x = threshold.value, y = read.percent)) + ggplot2::geom_line(size=2, color="orangered1") + 
+      ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
+            axis.text.x = element_text(size = 10, colour = "black", angle = 315, vjust = 0.7),
+            axis.title.x = element_text(size = 15, colour = "black"),
+            axis.title.y = element_text(size = 15, colour = "black")) 
+    
+    cowplot::plot_grid(plot1, plot2, labels = "AUTO")
+    
+  } else {
+    #RA
+    if (!is.null(est.obj$relative.abundance.filtering.stats)){
+      RA.stats <- est.obj$relative.abundance.filtering.stats
+      plot3 <- ggplot2::ggplot(data = RA.stats, aes(x = relative.abundance.filter, y = ASV.count)) + ggplot2::geom_line(size=2, color="steelblue2") + 
+        ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
+              axis.text.x = element_text(size = 10, colour = "black", angle = 315, vjust = 0.7),
+              axis.title.x = element_text(size = 15, colour = "black"),
+              axis.title.y = element_text(size = 15, colour = "black"))
+    } else {
+      RA.stats <- NULL
+      plot3 <- NULL
+    }
+    #CV
+    if (!is.null(est.obj$CV.filtering.stats)){
+      CV.stats <- est.obj$CV.filtering.stats
+      plot4 <- ggplot2::ggplot(data = CV.stats, aes(x = CV.filter, y = ASV.count)) + ggplot2::geom_line(size=2, color="orangered1") + 
+        ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
+              axis.text.x = element_text(size = 10, colour = "black", angle = 315, vjust = 0.7),
+              axis.title.x = element_text(size = 15, colour = "black"),
+              axis.title.y = element_text(size = 15, colour = "black")) 
+    } else {
+      CV.stats <- NULL
+      plot4 <- NULL
+    }
+    #P
+    if (!is.null(est.obj$prevalence.filtering.stats)){
+      P.stats <- est.obj$prevalence.filtering.stats
+      plot5 <- ggplot2::ggplot(data = P.stats, aes(x = prevalence.filter, y = ASV.count)) + ggplot2::geom_line(size=2, color="forestgreen") + 
+        ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
+              axis.text.x = element_text(size = 10, colour = "black", angle = 315, vjust = 0.7),
+              axis.title.x = element_text(size = 15, colour = "black"),
+              axis.title.y = element_text(size = 15, colour = "black")) 
+    } else {
+      P.stats <- NULL
+      plot5 <- NULL
+    }
+    
+    plist <- list(plot3, plot4, plot5)
+    cowplot::plot_grid(labels = "AUTO", plotlist = plist[which(!sapply(plist, is.null))])
+    
+  }
+}
 
 #PROCESSING FUNCTIONS
 #standardization 
@@ -473,7 +550,7 @@ estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdC
   return(l.return)
 }
 
-filter.dataset <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGATIVE=FALSE, minLIB=NULL, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, return.all=FALSE){
+microfilter <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGATIVE=FALSE, minLIB=NULL, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, return.all=FALSE){
   
   #throw error if controlID doesn't match
   if(all(!is.null(controlID), !(controlID %in% phyloseq::sample_names(ps)))){
