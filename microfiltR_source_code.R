@@ -672,7 +672,7 @@ microfilter <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGATIV
   return(l.return)
 }
 
-write.dataset.biom <- function(ps, filepath, fileprefix, rename=FALSE){
+write.dataset.biom <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALSE){
   
   #save ASV sequences to vector and rename for fasta format
   f.onames <- phyloseq::taxa_names(ps)
@@ -692,11 +692,16 @@ write.dataset.biom <- function(ps, filepath, fileprefix, rename=FALSE){
   )
   )
   
-  fa <- print(paste0(filepath, fileprefix, "_ASVs.fasta"))
-  bo <- print(paste0(filepath, fileprefix, "_ASV_table.biom"))
+  #create output string
+  if (isTRUE(writeFASTA)){
+    fa <- print(paste0(filePATH, filePREFIX, "_ASVs.fasta"))
+  }
+  bo <- print(paste0(filePATH, filePREFIX, "_ASV_table.biom"))
   
   #write output
+  if (isTRUE(writeFASTA)){
   write.table(x = f.onames, file = fa, quote = FALSE, sep = "\n", col.names = FALSE)
+  }
   #biom export
   biomformat::write_biom(x = ps.b, biom_file = bo)
   
@@ -704,7 +709,7 @@ write.dataset.biom <- function(ps, filepath, fileprefix, rename=FALSE){
   return(ps)
 }
 
-write.dataset <- function(ps, filepath, fileprefix, rename=FALSE){
+write.dataset <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALSE){
   
   #save ASV sequences to vector and rename for fasta format
   f.onames <- phyloseq::taxa_names(ps)
@@ -742,15 +747,19 @@ write.dataset <- function(ps, filepath, fileprefix, rename=FALSE){
   colnames(rcbs) <- NULL
   
   #create output string
-  fa <- print(paste0(filepath, fileprefix, "_ASVs.fasta"))
-  otb <- print(paste0(filepath, fileprefix, "_ASV_table.txt"))
-  ttb <- print(paste0(filepath, fileprefix, "_ASV_taxonomy.txt"))
-  stb <- print(paste0(filepath, fileprefix, "_sample_data.txt"))
+  if (isTRUE(writeFASTA)){
+    fa <- print(paste0(filePATH, filePREFIX, "_ASVs.fasta"))
+  }
+  otb <- print(paste0(filePATH, filePREFIX, "_ASV_table.txt"))
+  ttb <- print(paste0(filePATH, filePREFIX, "_ASV_taxonomy.txt"))
+  stb <- print(paste0(filePATH, filePREFIX, "_sample_data.txt"))
   
   
   #write output
   #ASV fasta 
+  if (isTRUE(writeFASTA)){
   write.table(x = f.onames, file = fa, quote = FALSE, sep = "\n", col.names = FALSE)
+  }
   #asv.tab
   write.table(x = rcb, file = otb, row.names = FALSE, col.names = FALSE, quote = FALSE, sep = "\t")
   #tax.tab
