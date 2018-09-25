@@ -108,7 +108,7 @@ standardize.median <- function(ps){
 }
 
 #parameter estimation
-getWS <- function(ps, WSrange, controlID, controlFASTA=NULL){
+getWS <- function(ps, WSrange, controlID, controlFASTA=NULL, useREFSEQ=FALSE){
   
   #Build param lists
   l.t <- seq(from = WSrange[1], to = WSrange[2], by = WSrange[3])
@@ -137,7 +137,14 @@ getWS <- function(ps, WSrange, controlID, controlFASTA=NULL){
       pvec[i] <- sum(phyloseq::sample_sums(ps.ws))/sum(phyloseq::sample_sums(ps))*100
       
       if (!is.null(controlFASTA)){
-        nvec[[i]] <- rownames(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
+        if (isTRUE(useREFSEQ)){
+          #from phyloseq refseq slot
+          control.taxanames <- rownames(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
+          nvec[[i]] <- phyloseq::refseq(ps.ws)[control.taxanames]
+          } else {
+          nvec[[i]] <- rownames(asv.tab[which(asv.tab[,match(controlID, colnames(asv.tab))] != 0),])
+          }
+        #calculate matches to control FASTA
         mvec[i] <- sum(sapply(nvec[[i]], function(x) any(grepl(x, as.character(ShortRead::sread(cfasta))))))
       }
       
@@ -403,7 +410,7 @@ Pfilter <- function(ps, WST=NULL, PF){
 }
 
 #WRAPPER FUNCTIONS
-estimate.WSthreshold <- function(ps, WSrange, controlID, controlFASTA=NULL) {
+estimate.WSthreshold <- function(ps, WSrange, controlID, controlFASTA=NULL, useREFSEQ=FALSE) {
   
   #throw error if controlID doesn't match
   if(!(controlID %in% phyloseq::sample_names(ps))){
@@ -414,10 +421,11 @@ estimate.WSthreshold <- function(ps, WSrange, controlID, controlFASTA=NULL) {
   string.w <- substitute(WSrange)
   WST <- eval(expr = format.parameter.string(string = string.w), envir = parent.frame())
   message('Estimating filtering statistics from WS thresholds ', WST[1], ' to ', WST[2], ' by ', WST[3])
-  gws <- getWS(ps = ps, WSrange = WST, controlID = controlID, controlFASTA = controlFASTA)
+  gws <- getWS(ps = ps, WSrange = WST, controlID = controlID, controlFASTA = controlFASTA, useREFSEQ=useREFSEQ)
   gws
   
 }
+
 
 
 estimate.ASthreshold <- function(ps, WST=NULL, RAT=NULL, CVT=NULL, PFT=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGATIVE=FALSE,
@@ -672,15 +680,21 @@ microfilter <- function(ps, controlID=NULL, mdCAT=NULL, mdFACTOR=NULL, mdNEGATIV
   return(l.return)
 }
 
-write.dataset.biom <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALSE){
+write.dataset.biom <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALSE, useREFSEQ=FALSE){
   
-  #save ASV sequences to vector and rename for fasta format
+  #pull seqs from refseq slot or extract from ASV ID for fasta format
+  if (isTRUE(useREFSEQ)){
+    #from phyloseq refseq slot
+    f.onames <- phyloseq::refseq(ps)
+  } else {
   f.onames <- phyloseq::taxa_names(ps)
+  }
+  
   if (isTRUE(rename)){
     phyloseq::taxa_names(ps) <- paste("ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
     names(f.onames) <- paste0(">", phyloseq::taxa_names(ps))
   } else {
-    names(f.onames) <- paste(">ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
+    names(f.onames) <- paste0(">", phyloseq::taxa_names(ps))
   }
   
   #generate biom file
@@ -709,16 +723,23 @@ write.dataset.biom <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename
   return(ps)
 }
 
-write.dataset <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALSE){
+write.dataset <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALSE, useREFSEQ=FALSE){
   
-  #save ASV sequences to vector and rename for fasta format
+  #pull seqs from refseq slot or extract from ASV ID for fasta format
+  if (isTRUE(useREFSEQ)){
+    #from phyloseq refseq slot
+    f.onames <- phyloseq::refseq(ps)
+  } else {
   f.onames <- phyloseq::taxa_names(ps)
+  }
+  
   if (isTRUE(rename)){
     phyloseq::taxa_names(ps) <- paste("ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
     names(f.onames) <- paste0(">", phyloseq::taxa_names(ps))
   } else {
-    names(f.onames) <- paste(">ASV", 1:length(phyloseq::taxa_names(ps)), sep = "")
+    names(f.onames) <- paste0(">", phyloseq::taxa_names(ps))
   }
+    
   
   #generate asv table formatted for biom generation
   asv.tab <- format.ASV.tab(ps)
@@ -758,7 +779,7 @@ write.dataset <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALS
   #write output
   #ASV fasta 
   if (isTRUE(writeFASTA)){
-  write.table(x = f.onames, file = fa, quote = FALSE, sep = "\n", col.names = FALSE)
+    write.table(x = f.onames, file = fa, quote = FALSE, sep = "\n", col.names = FALSE)
   }
   #asv.tab
   write.table(x = rcb, file = otb, row.names = FALSE, col.names = FALSE, quote = FALSE, sep = "\t")
@@ -770,5 +791,4 @@ write.dataset <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALS
   #return phyloseq object with taxa renamed to ASV1, etc.
   return(ps)
 }
-
 
