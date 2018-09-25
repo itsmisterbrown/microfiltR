@@ -39,19 +39,24 @@ plot.threshold <- function(est.obj){
     df <- format.long(est.obj)
     
     plot1 <- ggplot2::ggplot(data = df, aes(x=threshold.value, y=taxa.hits, color=cgroup)) + 
-      ggplot2::geom_line(size=2, alpha=0.7) + ggplot2::scale_color_manual(values = c("orange", "steelblue2"), labels = c("Control taxa count", "Control taxa matches")) +
+      ggplot2::geom_line(size=2, alpha=0.7) + ggplot2::scale_color_manual(values = c("orange", "steelblue2"), labels = c("Total", "Matches")) +
       ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
-            axis.text.x = element_text(size = 10, colour = "black", angle = 315, vjust = 0.7),
+            axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
             axis.title.x = element_text(size = 15, colour = "black"),
-            axis.title.y = element_text(size = 0),
+            axis.title.y = element_text(size = 15),
             legend.title = element_text(size = 0),
-            legend.position = "top")
+            legend.text = element_text(size = 15, colour = "black"),
+            legend.position = "top",
+            legend.key = element_rect(size = 5),
+            legend.key.size = unit(2.5, 'lines')) + 
+      labs(x="Threshold value", y="Taxon count")
     
     plot2 <- ggplot2::ggplot(data = est.obj, aes(x = threshold.value, y = read.percent)) + ggplot2::geom_line(size=2, color="orangered1") + 
       ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
-            axis.text.x = element_text(size = 10, colour = "black", angle = 315, vjust = 0.7),
+            axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
             axis.title.x = element_text(size = 15, colour = "black"),
-            axis.title.y = element_text(size = 15, colour = "black")) 
+            axis.title.y = element_text(size = 15, colour = "black")) +
+      labs(x="Threshold value", y="Read percent")
     
     cowplot::plot_grid(plot1, plot2, labels = "AUTO")
     
