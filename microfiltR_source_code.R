@@ -66,9 +66,10 @@ plot.threshold <- function(est.obj){
       RA.stats <- est.obj$relative.abundance.filtering.stats
       plot3 <- ggplot2::ggplot(data = RA.stats, aes(x = relative.abundance.filter, y = ASV.count)) + ggplot2::geom_line(size=2, color="steelblue2") + 
         ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
-              axis.text.x = element_text(size = 10, colour = "black", angle = 315, vjust = 0.7),
+              axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
               axis.title.x = element_text(size = 15, colour = "black"),
-              axis.title.y = element_text(size = 15, colour = "black"))
+              axis.title.y = element_text(size = 15, colour = "black")) +
+        labs(x="Relative abundance threshold", y="Taxon count")
     } else {
       RA.stats <- NULL
       plot3 <- NULL
@@ -78,9 +79,10 @@ plot.threshold <- function(est.obj){
       CV.stats <- est.obj$CV.filtering.stats
       plot4 <- ggplot2::ggplot(data = CV.stats, aes(x = CV.filter, y = ASV.count)) + ggplot2::geom_line(size=2, color="orangered1") + 
         ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
-              axis.text.x = element_text(size = 10, colour = "black", angle = 315, vjust = 0.7),
+              axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
               axis.title.x = element_text(size = 15, colour = "black"),
-              axis.title.y = element_text(size = 15, colour = "black")) 
+              axis.title.y = element_text(size = 15, colour = "black")) +
+        labs(x="CV threshold", y="Taxon count")
     } else {
       CV.stats <- NULL
       plot4 <- NULL
@@ -90,9 +92,10 @@ plot.threshold <- function(est.obj){
       P.stats <- est.obj$prevalence.filtering.stats
       plot5 <- ggplot2::ggplot(data = P.stats, aes(x = prevalence.filter, y = ASV.count)) + ggplot2::geom_line(size=2, color="forestgreen") + 
         ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
-              axis.text.x = element_text(size = 10, colour = "black", angle = 315, vjust = 0.7),
+              axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
               axis.title.x = element_text(size = 15, colour = "black"),
-              axis.title.y = element_text(size = 15, colour = "black")) 
+              axis.title.y = element_text(size = 15, colour = "black")) +
+        labs(x="Prevalence threshold", y="Taxon count")
     } else {
       P.stats <- NULL
       plot5 <- NULL
