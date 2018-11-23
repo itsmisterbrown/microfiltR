@@ -707,7 +707,7 @@ write.dataset.biom <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename
   
   #generate biom file
   suppressWarnings(ps.b <- biomformat::make_biom(
-    data = as.matrix(t(phyloseq::otu_table(ps))),
+    data = format.ASV.tab(ps),
     sample_metadata = as.data.frame(phyloseq::sample_data(ps)),
     observation_metadata = as.data.frame(phyloseq::tax_table(ps)), 
     matrix_element_type = "int"
