@@ -727,8 +727,10 @@ write.dataset.biom <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename
   #biom export
   biomformat::write_biom(x = ps.b, biom_file = bo)
   
-  #return phyloseq object with taxa renamed to ASV1, etc.
-  return(ps)
+  #return phyloseq object with taxa renamed to ASV1, etc., if desired
+  if (isTRUE(rename)){
+    return(ps)
+  }
 }
 
 write.dataset <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALSE, useREFSEQ=FALSE){
@@ -738,7 +740,7 @@ write.dataset <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALS
     #from phyloseq refseq slot
     f.onames <- phyloseq::refseq(ps)
   } else {
-  f.onames <- phyloseq::taxa_names(ps)
+    f.onames <- phyloseq::taxa_names(ps)
   }
   
   if (isTRUE(rename)){
@@ -747,7 +749,7 @@ write.dataset <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALS
   } else {
     names(f.onames) <- paste0(">", phyloseq::taxa_names(ps))
   }
-    
+  
   
   #generate asv table formatted for biom generation
   asv.tab <- format.ASV.tab(ps)
@@ -760,8 +762,7 @@ write.dataset <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALS
   
   #generate tax table formatted for biom generation
   tax.tab <- as.data.frame(phyloseq::tax_table(ps))
-  tax.tab$taxonomy <- paste(tax.tab$Kingdom, tax.tab$Phylum, tax.tab$Class, 
-                            tax.tab$Order, tax.tab$Family, tax.tab$Genus, tax.tab$Species, sep = ";")
+  tax.tab$taxonomy <- tidyr::unite_(tax.tab, "out", c(colnames(tax.tab)), sep = ";")
   cbt <- as.matrix(cbind(rownames(tax.tab), tax.tab$taxonomy))
   rcbt <- as.matrix(rbind(c("#ASVID", "taxonomy"), cbt))
   rownames(cbt) <- NULL
@@ -796,7 +797,9 @@ write.dataset <- function(ps, filePATH, filePREFIX, writeFASTA=TRUE, rename=FALS
   #sampledf
   write.table(x = rcbs, file = stb, row.names = FALSE, col.names = FALSE, quote = FALSE, sep = "\t")
   
-  #return phyloseq object with taxa renamed to ASV1, etc.
-  return(ps)
+  #return phyloseq object with taxa renamed to ASV1, etc., if desired
+  if (isTRUE(rename)){
+    return(ps)
+  }
 }
 
