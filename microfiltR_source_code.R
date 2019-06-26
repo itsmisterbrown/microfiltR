@@ -1,5 +1,5 @@
-##functions for processing compositional microbiome data
-#all scripts written by BPB, 071318
+##functions for processing compositional microbiome datasets
+#all scripts written by BPB, 062519
 
 #ERROR PROTECTION FUNCTIONS
 format.ASV.tab <- function(ps){
@@ -32,43 +32,149 @@ format.long <- function(df){
 }
 
 #PLOTTING FUNCTIONS
-plot.threshold <- function(est.obj){
+plot.threshold <- function(est.obj, y=NULL, x=NULL, PFT=NULL, RAT=NULL, CVT=NULL, taxrank=NULL){
+  #never gray
   ggplot2::theme_set(theme_bw())
-  #plot either WS or AS figs
+  
+  #error checking
+  if (!is.null(x) && is.null(y)){
+    stop("Please provide variables for both axes")
+  }
+  
+  if (is.null(x) && !is.null(y)){
+    stop("Please provide variables for both axes")
+  }
+  
+  #plot either WS, AS or taxonomic filter figs
+  
+  #begin WS threshold plots
   if (is.data.frame(est.obj)){
     df <- format.long(est.obj)
     
     plot1 <- ggplot2::ggplot(data = df, aes(x=threshold.value, y=taxa.hits, color=cgroup)) + 
       ggplot2::geom_line(size=2, alpha=0.7) + ggplot2::scale_color_manual(values = c("orange", "steelblue2"), labels = c("Total", "Matches")) +
       ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
-            axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
-            axis.title.x = element_text(size = 15, colour = "black"),
-            axis.title.y = element_text(size = 15),
-            legend.title = element_text(size = 0),
-            legend.text = element_text(size = 15, colour = "black"),
-            legend.position = "top",
-            legend.key = element_rect(size = 5),
-            legend.key.size = unit(2.5, 'lines')) + 
+                     axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
+                     axis.title.x = element_text(size = 15, colour = "black"),
+                     axis.title.y = element_text(size = 15),
+                     legend.title = element_text(size = 0),
+                     legend.text = element_text(size = 15, colour = "black"),
+                     legend.position = "top",
+                     legend.key = element_rect(size = 5),
+                     legend.key.size = unit(2.5, 'lines')) + 
       labs(x="Threshold value", y="Taxon count")
     
     plot2 <- ggplot2::ggplot(data = est.obj, aes(x = threshold.value, y = read.percent)) + ggplot2::geom_line(size=2, color="orangered1") + 
       ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
-            axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
-            axis.title.x = element_text(size = 15, colour = "black"),
-            axis.title.y = element_text(size = 15, colour = "black")) +
+                     axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
+                     axis.title.x = element_text(size = 15, colour = "black"),
+                     axis.title.y = element_text(size = 15, colour = "black")) +
       labs(x="Threshold value", y="Read percent")
     
     cowplot::plot_grid(plot1, plot2, labels = "AUTO")
-    
+    #begin ASV threshold plots
+  } else if (!is.null(x) && !is.null(y)){
+      
+      #create df of ASV data and remove filtered taxa
+      ASV.df <- est.obj$ASV.filtering.stats
+      ASV.df.f <- ASV.df[complete.cases(ASV.df[,5]),] #remove filtered taxa
+      
+      #plots
+      if (x == "P" && y =="RA"){
+        #plot RA by prevalence
+        asv.plot <- ggplot2::ggplot(data = ASV.df.f, aes(x = ASV.prevalence.percent, y = ASV.read.percent, color=Phylum)) + ggplot2::geom_point(size=3) + 
+          ggplot2::facet_wrap(taxrank, scales = "fixed") + ggplot2::scale_y_log10() +
+          ggplot2::theme(axis.text.x = element_text(size = 10, angle = 315, vjust = 0.2), 
+                         legend.position = "right",
+                         strip.text = element_text(size=11, color="white"),
+                         strip.background = element_rect(fill = "black")) +
+          ggplot2::geom_hline(yintercept = RAT, lty=2) +
+          ggplot2::geom_vline(xintercept = PFT) +
+          ggplot2::labs(y="ASV abundance (%)", x= "ASV prevalence (%)")
+        
+        return(asv.plot)
+        
+      } else if (x == "P" && y =="CV"){
+        #plot CV by prevalence
+        asv.plot <- ggplot2::ggplot(data = ASV.df.f, aes(x = ASV.prevalence.percent, y = ASV.CV, color=Phylum)) + ggplot2::geom_point(size=3) + 
+          ggplot2::facet_wrap(taxrank, scales = "fixed") + 
+          ggplot2::theme(axis.text.x = element_text(size = 10, angle = 315, vjust = 0.2), 
+                         legend.position = "right",
+                         strip.text = element_text(size=11, color="white"),
+                         strip.background = element_rect(fill = "black")) +
+          ggplot2::geom_hline(yintercept = CVT, lty=2) +
+          ggplot2::geom_vline(xintercept = PFT) +
+          ggplot2::labs(y="ASV CV", x= "ASV prevalence (%)")
+        
+        return(asv.plot)
+        
+      } else if (x == "RA" && y =="CV"){
+        #plot CV by RA
+        asv.plot <- ggplot2::ggplot(data = ASV.df.f, aes(x = ASV.read.percent, y = ASV.CV, color=Phylum)) + ggplot2::geom_point(size=3) + 
+          ggplot2::facet_wrap(taxrank, scales = "fixed") + ggplot2::scale_x_log10() +
+          ggplot2::theme(axis.text.x = element_text(size = 10, angle = 315, vjust = 0.2), 
+                         legend.position = "right",
+                         strip.text = element_text(size=11, color="white"),
+                         strip.background = element_rect(fill = "black")) +
+          ggplot2::geom_hline(yintercept = CVT, lty=2) +
+          ggplot2::geom_vline(xintercept = RAT) +
+          ggplot2::labs(y="ASV CV", x= "ASV abundance (%)")
+        
+        return(asv.plot)
+        
+      } else if (x == "RA" && y =="P"){
+        #plot prevalence by RA
+        asv.plot <- ggplot2::ggplot(data = ASV.df.f, aes(x = ASV.read.percent, y = ASV.prevalence.percent, color=Phylum)) + ggplot2::geom_point(size=3) + 
+          ggplot2::facet_wrap(taxrank, scales = "fixed") + ggplot2::scale_x_log10() +
+          ggplot2::theme(axis.text.x = element_text(size = 10, angle = 315, vjust = 0.2), 
+                         legend.position = "right",
+                         strip.text = element_text(size=11, color="white"),
+                         strip.background = element_rect(fill = "black")) +
+          ggplot2::geom_hline(yintercept = PFT, lty=2) +
+          ggplot2::geom_vline(xintercept = RAT) +
+          ggplot2::labs(y="ASV prevalence (%)", x= "ASV abundance (%)")
+        
+        return(asv.plot)
+        
+      } else if (x == "CV" && y =="RA"){
+        #plot RA by CV
+        asv.plot <- ggplot2::ggplot(data = ASV.df.f, aes(x = ASV.CV, y = ASV.read.percent, color=Phylum)) + ggplot2::geom_point(size=3) + 
+          ggplot2::facet_wrap(taxrank, scales = "fixed") + ggplot2::scale_y_log10() +
+          ggplot2::theme(axis.text.x = element_text(size = 10, angle = 315, vjust = 0.2), 
+                         legend.position = "right",
+                         strip.text = element_text(size=11, color="white"),
+                         strip.background = element_rect(fill = "black")) +
+          ggplot2::geom_hline(yintercept = RAT, lty=2) +
+          ggplot2::geom_vline(xintercept = CVT) +
+          ggplot2::labs(y="ASV abundance (%)", x= "ASV CV")
+        
+        return(asv.plot)
+        
+      } else if (x == "CV" && y =="P"){
+        #plot prevalence by CV
+        asv.plot <- ggplot2::ggplot(data = ASV.df.f, aes(x = ASV.CV, y = ASV.prevalence.percent, color=Phylum)) + ggplot2::geom_point(size=3) + 
+          ggplot2::facet_wrap(taxrank, scales = "fixed") + 
+          ggplot2::theme(axis.text.x = element_text(size = 10, angle = 315, vjust = 0.2), 
+                         legend.position = "right",
+                         strip.text = element_text(size=11, color="white"),
+                         strip.background = element_rect(fill = "black")) +
+          ggplot2::geom_hline(yintercept = PFT, lty=2) +
+          ggplot2::geom_vline(xintercept = CVT) +
+          ggplot2::labs(y="ASV prevalence (%)", x= "ASV CV")
+        
+        return(asv.plot)
+        
+      }
+    #begin AS threshold plots
   } else {
     #RA
     if (!is.null(est.obj$relative.abundance.filtering.stats)){
       RA.stats <- est.obj$relative.abundance.filtering.stats
       plot3 <- ggplot2::ggplot(data = RA.stats, aes(x = relative.abundance.filter, y = ASV.count)) + ggplot2::geom_line(size=2, color="steelblue2") + 
         ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
-              axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
-              axis.title.x = element_text(size = 15, colour = "black"),
-              axis.title.y = element_text(size = 15, colour = "black")) +
+                       axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
+                       axis.title.x = element_text(size = 15, colour = "black"),
+                       axis.title.y = element_text(size = 15, colour = "black")) +
         labs(x="Relative abundance threshold", y="Taxon count")
     } else {
       RA.stats <- NULL
@@ -79,9 +185,9 @@ plot.threshold <- function(est.obj){
       CV.stats <- est.obj$CV.filtering.stats
       plot4 <- ggplot2::ggplot(data = CV.stats, aes(x = CV.filter, y = ASV.count)) + ggplot2::geom_line(size=2, color="orangered1") + 
         ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
-              axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
-              axis.title.x = element_text(size = 15, colour = "black"),
-              axis.title.y = element_text(size = 15, colour = "black")) +
+                       axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
+                       axis.title.x = element_text(size = 15, colour = "black"),
+                       axis.title.y = element_text(size = 15, colour = "black")) +
         labs(x="CV threshold", y="Taxon count")
     } else {
       CV.stats <- NULL
@@ -92,9 +198,9 @@ plot.threshold <- function(est.obj){
       P.stats <- est.obj$prevalence.filtering.stats
       plot5 <- ggplot2::ggplot(data = P.stats, aes(x = prevalence.filter, y = ASV.count)) + ggplot2::geom_line(size=2, color="forestgreen") + 
         ggplot2::theme(axis.text.y = element_text(size = 15, colour = "black"),
-              axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
-              axis.title.x = element_text(size = 15, colour = "black"),
-              axis.title.y = element_text(size = 15, colour = "black")) +
+                       axis.text.x = element_text(size = 15, colour = "black", angle = 315, vjust = 0.7),
+                       axis.title.x = element_text(size = 15, colour = "black"),
+                       axis.title.y = element_text(size = 15, colour = "black")) +
         labs(x="Prevalence threshold", y="Taxon count")
     } else {
       P.stats <- NULL
